@@ -1,0 +1,80 @@
+<svg viewBox="0 0 1280 640" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgB" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6C5CE7"/>
+      <stop offset="100%" stop-color="#A864F2"/>
+    </linearGradient>
+    <linearGradient id="bubbleBackB" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#F3EEFF" stop-opacity="0.95"/>
+    </linearGradient>
+    <linearGradient id="bubbleFrontB" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD66B"/>
+      <stop offset="100%" stop-color="#FFB347"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background -->
+  <rect width="1280" height="640" fill="url(#bgB)"/>
+
+  <!-- decorative soft circles -->
+  <circle cx="1120" cy="80" r="160" fill="#FFFFFF" opacity="0.06"/>
+  <circle cx="60" cy="560" r="220" fill="#FFFFFF" opacity="0.05"/>
+  <circle cx="1000" cy="560" r="90" fill="#FFFFFF" opacity="0.05"/>
+
+  <!-- icon group, scaled + positioned left -->
+  <g transform="translate(120,150) scale(0.62)">
+    <!-- back speech bubble -->
+    <g transform="translate(248,150)">
+      <path d="M0 60
+               C0 26.86 26.86 0 60 0
+               L150 0
+               C183.14 0 210 26.86 210 60
+               L210 120
+               C210 153.14 183.14 180 150 180
+               L60 180
+               C26.86 180 0 153.14 0 120
+               Z"
+            fill="url(#bubbleBackB)"/>
+      <path d="M28 168 C18 188 10 200 -6 208 C16 210 38 202 52 186 Z" fill="url(#bubbleBackB)"/>
+      <circle cx="60" cy="80" r="9" fill="#8E7CC3"/>
+      <circle cx="105" cy="80" r="9" fill="#8E7CC3"/>
+      <path d="M70 118 Q105 140 140 118" stroke="#8E7CC3" stroke-width="9" fill="none" stroke-linecap="round"/>
+    </g>
+    <!-- front speech bubble -->
+    <g transform="translate(120,235)">
+      <path d="M0 50
+               C0 22.39 22.39 0 50 0
+               L150 0
+               C177.61 0 200 22.39 200 50
+               L200 100
+               C200 127.61 177.61 150 150 150
+               L60 150
+               C32 150 24 158 14 178
+               C18 158 14 150 0 138
+               Z"
+            fill="url(#bubbleFrontB)"/>
+      <path d="M150 55 Q165 75 150 95" stroke="#7A4A00" stroke-width="9" fill="none" stroke-linecap="round" opacity="0.55"/>
+      <path d="M168 42 Q192 75 168 108" stroke="#7A4A00" stroke-width="9" fill="none" stroke-linecap="round" opacity="0.4"/>
+      <circle cx="55" cy="75" r="8" fill="#7A4A00" opacity="0.7"/>
+      <circle cx="90" cy="75" r="8" fill="#7A4A00" opacity="0.7"/>
+    </g>
+  </g>
+
+  <!-- wordmark -->
+  <text x="560" y="320" font-family="Arial, Helvetica, sans-serif" font-size="96" font-weight="800" fill="#FFFFFF">PechPech</text>
+  <!-- tagline -->
+  <text x="562" y="372" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="400" fill="#F3EEFF" opacity="0.92">Your meetings, whispered into minutes.</text>
+
+  <!-- small feature pills -->
+  <g font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="600" fill="#6C5CE7">
+    <rect x="562" y="410" width="118" height="42" rx="21" fill="#FFFFFF" opacity="0.95"/>
+    <text x="585" y="437">Record</text>
+
+    <rect x="694" y="410" width="146" height="42" rx="21" fill="#FFFFFF" opacity="0.95"/>
+    <text x="715" y="437">Transcribe</text>
+
+    <rect x="854" y="410" width="138" height="42" rx="21" fill="#FFFFFF" opacity="0.95"/>
+    <text x="876" y="437">Summarize</text>
+  </g>
+</svg>

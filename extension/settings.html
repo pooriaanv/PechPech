@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>تنظیمات — PechPech</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --color-primary:      #1a56db;
+      --color-primary-dark: #1e40af;
+      --color-bg:           #ffffff;
+      --color-surface:      #f8fafc;
+      --color-border:       #e2e8f0;
+      --color-text:         #0f172a;
+      --color-text-muted:   #64748b;
+      --color-success:      #16a34a;
+      --color-success-bg:   #f0fdf4;
+      --color-success-border:#bbf7d0;
+      --radius-sm:          6px;
+      --radius-md:          10px;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: var(--color-surface);
+      color: var(--color-text);
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .page {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    /* Header */
+    .page-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .page-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--color-primary);
+    }
+
+    .page-header p {
+      font-size: 13px;
+      color: var(--color-text-muted);
+      margin-top: 2px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      color: var(--color-primary-dark);
+      margin-bottom: 16px;
+    }
+
+    /* Form elements */
+    .field {
+      margin-bottom: 16px;
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text);
+      margin-bottom: 6px;
+    }
+
+    .field-hint {
+      font-size: 12px;
+      color: var(--color-text-muted);
+      margin-top: 4px;
+    }
+
+    input[type="text"],
+    input[type="url"],
+    input[type="password"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      color: var(--color-text);
+      background: var(--color-bg);
+      direction: ltr;
+      text-align: left;
+      transition: border-color .15s, box-shadow .15s;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(26, 86, 219, .15);
+    }
+
+    /* Server unreachable banner */
+    #server-error {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #dc2626;
+      margin-bottom: 20px;
+    }
+    #server-error.visible { display: block; }
+
+    /* Custom command / API fields — hidden by default */
+    #custom-command-field,
+    #api-fields {
+      display: none;
+    }
+    #custom-command-field.visible,
+    #api-fields.visible {
+      display: block;
+    }
+
+    /* Buttons */
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 24px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 20px;
+      transition: background .15s, transform .1s;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--color-primary-dark); }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--color-text-muted);
+      border: 1px solid var(--color-border);
+    }
+    .btn-outline:hover {
+      background: var(--color-surface);
+      color: var(--color-text);
+    }
+
+    /* Toast */
+    .toast {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: var(--color-success-bg);
+      border: 1px solid var(--color-success-border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--color-success);
+      margin-top: 12px;
+    }
+    .toast.visible { display: flex; }
+
+    /* Info box */
+    .info-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #1e40af;
+      margin-top: 0;
+    }
+
+    .info-box code {
+      font-family: monospace;
+      background: rgba(255,255,255,.6);
+      padding: 1px 5px;
+      border-radius: 3px;
+      direction: ltr;
+      display: inline-block;
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: var(--color-border);
+      margin: 16px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- Server error banner -->
+    <div id="server-error"></div>
+
+    <!-- Header -->
+    <div class="page-header">
+      <div>
+        <h1>🎙️ PechPech — تنظیمات</h1>
+        <p>تنظیمات در این دستگاه ذخیره می‌شوند و هرگز از آن خارج نمی‌شوند.</p>
+      </div>
+    </div>
+
+    <!-- STT Config -->
+    <div class="card">
+      <div class="card-title">تبدیل گفتار به متن (STT)</div>
+
+      <div class="field">
+        <label for="stt-url">آدرس پایه سرور STT</label>
+        <input type="url" id="stt-url" placeholder="http://localhost:8080/v1" />
+        <p class="field-hint">
+          سازگار با OpenAI Whisper API. مثال برای سرور محلی:
+          <code style="font-family:monospace;direction:ltr">http://localhost:8080/v1</code>
+        </p>
+      </div>
+
+      <div class="field">
+        <label for="stt-key">کلید API (اختیاری)</label>
+        <input type="password" id="stt-key" placeholder="sk-..." autocomplete="off" />
+        <p class="field-hint">برای سرور محلی خالی بگذارید. برای OpenAI / Groq وارد کنید.</p>
+      </div>
+
+      <div class="field">
+        <label for="stt-model">نام مدل STT</label>
+        <input type="text" id="stt-model" placeholder="whisper-1" />
+        <p class="field-hint">
+          پیش‌فرض: <code>whisper-1</code> (OpenAI) &nbsp;|&nbsp;
+          GapGPT: <code>whisper-large-v3</code>
+        </p>
+      </div>
+    </div>
+
+    <!-- LLM Config -->
+    <div class="card">
+      <div class="card-title">مدل زبانی (LLM)</div>
+
+      <div class="field">
+        <label for="llm-cli">نوع اتصال</label>
+        <select id="llm-cli">
+          <option value="claude">Claude Code (claude)</option>
+          <option value="api">Custom API (OpenAI-compatible)</option>
+          <option value="custom">Custom CLI</option>
+        </select>
+        <p class="field-hint">Claude Code باید از قبل نصب و وارد سیستم شده باشد.</p>
+      </div>
+
+      <div class="field" id="custom-command-field">
+        <label for="llm-command">دستور سفارشی CLI</label>
+        <input type="text" id="llm-command" placeholder="my-llm-cli --flag" />
+        <p class="field-hint">
+          دستور اجرا برای CLI سفارشی. متن prompt به عنوان اولین آرگومان ارسال می‌شود.
+        </p>
+      </div>
+
+      <div id="api-fields">
+        <div class="field">
+          <label for="llm-api-url">آدرس پایه API</label>
+          <input type="url" id="llm-api-url" placeholder="https://api.openai.com/v1" />
+          <p class="field-hint">سازگار با OpenAI Chat Completions API.</p>
+        </div>
+        <div class="field">
+          <label for="llm-api-key">کلید API</label>
+          <input type="password" id="llm-api-key" placeholder="sk-..." autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="llm-api-model">نام مدل</label>
+          <input type="text" id="llm-api-model" placeholder="gpt-4o" />
+          <p class="field-hint">پیش‌فرض: <code>gpt-4o</code></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Helper Config -->
+    <div class="card">
+      <div class="card-title">سرور محلی (Local Helper)</div>
+
+      <div class="field">
+        <label for="helper-port">پورت</label>
+        <input type="number" id="helper-port" value="3456" min="1024" max="65535" />
+        <p class="field-hint">پورتی که <code>server.js</code> روی آن اجرا می‌شود. پیش‌فرض: ۳۴۵۶</p>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="info-box">
+        برای اجرای Local Helper:<br/>
+        <code>cd local-helper && npm install && node server.js</code>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="btn-row">
+      <button id="btn-save" class="btn btn-primary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/>
+          <polyline points="7 3 7 8 15 8"/>
+        </svg>
+        ذخیره تنظیمات
+      </button>
+      <button id="btn-reset" class="btn btn-outline">بازنشانی</button>
+    </div>
+
+    <div id="toast-saved" class="toast">
+      ✓ تنظیمات با موفقیت ذخیره شد.
+    </div>
+  </div>
+
+  <script src="settings.js"></script>
+</body>
+</html>

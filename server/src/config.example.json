@@ -1,0 +1,24 @@
+{
+  "_comment": "Copy this file to config.json and fill in your values.",
+  "_comment2": "Settings in config.json are defaults — the extension's settings page overrides them per request.",
+
+  "port": 3456,
+
+  "stt_url": "http://localhost:8080/v1",
+  "_stt_url_note": "Whisper-compatible STT base URL. Examples:",
+  "_stt_url_examples": [
+    "http://localhost:8080/v1          (local whisper.cpp server)",
+    "http://localhost:9000/v1          (faster-whisper with OpenAI wrapper)",
+    "https://api.openai.com/v1         (OpenAI Whisper API)",
+    "https://api.groq.com/openai/v1    (Groq Whisper API)"
+  ],
+
+  "stt_key": "",
+  "_stt_key_note": "API key for the STT provider. Leave empty for local servers.",
+
+  "llm_cli": "claude",
+  "_llm_cli_options": ["claude", "codex", "gemini", "custom"],
+
+  "llm_command": "",
+  "_llm_command_note": "Only used when llm_cli is 'custom'. Example: 'my-llm --flag'"
+}

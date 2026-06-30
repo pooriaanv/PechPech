@@ -1,0 +1,21 @@
+services:
+  pechpech-helper:
+    build:
+      context: ./server
+      args:
+        LLM_CLI: ${LLM_CLI:-claude}
+    container_name: pechpech-helper
+    ports:
+      - "127.0.0.1:${PECHPECH_PORT:-3456}:${PECHPECH_PORT:-3456}"
+    volumes:
+      - ./data:/app/data
+      - ./server/src/config.json:/app/src/config.json
+      - ${CLAUDE_DIR:-~/.claude}:/root/.claude
+    environment:
+      PECHPECH_HOST: "0.0.0.0"
+      PECHPECH_PORT: ${PECHPECH_PORT:-3456}
+      LLM_CLI: ${LLM_CLI:-claude}
+      DATA_DIR: /app/data
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    restart: unless-stopped

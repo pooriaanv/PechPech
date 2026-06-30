@@ -1,0 +1,15 @@
+{
+  "name": "pechpech-launcher",
+  "version": "1.0.0",
+  "description": "PechPech launcher — no external dependencies",
+  "main": "index.js",
+  "scripts": {
+    "start":             "node index.js",
+    "install-startup":   "node index.js --install",
+    "uninstall-startup": "node index.js --uninstall",
+    "stop":              "node index.js --stop"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PechPech — راه‌اندازی</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --v50:  #f5f3ff; --v100: #ede9fe; --v200: #ddd6fe;
+  --v500: #8b5cf6; --v600: #7c3aed; --v700: #6d28d9;
+  --g50: #f9fafb; --g100: #f3f4f6; --g200: #e5e7eb;
+  --g300: #d1d5db; --g400: #9ca3af; --g500: #6b7280;
+  --g700: #374151; --g900: #111827;
+  --green100: #dcfce7; --green600: #16a34a;
+  --amber100: #fef3c7; --amber600: #d97706;
+  --red100: #fee2e2; --red600: #dc2626;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--g50);
+  color: var(--g900);
+  font-size: 15px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+
+/* ── Card ── */
+.card {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.06);
+  width: 100%;
+  max-width: 640px;
+  overflow: hidden;
+}
+
+/* ── Header ── */
+.card-header {
+  background: linear-gradient(135deg, var(--v600), var(--v700));
+  padding: 28px 32px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo-box {
+  width: 52px; height: 52px;
+  background: rgba(255,255,255,.18);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.logo-box img { width: 100%; height: 100%; object-fit: cover; }
+
+.logo-text h1 {
+  font-size: 22px; font-weight: 800;
+  color: #fff; letter-spacing: -.5px; direction: ltr;
+}
+.logo-text p {
+  font-size: 13px; color: rgba(255,255,255,.75);
+  font-weight: 400; margin-top: 2px;
+}
+
+/* ── Step indicator ── */
+.steps-bar {
+  display: flex;
+  align-items: center;
+  padding: 20px 32px 0;
+  gap: 0;
+  direction: ltr;
+}
+
+.step-dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--g200);
+  color: var(--g400);
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background .3s, color .3s;
+}
+.step-dot.active { background: var(--v600); color: #fff; box-shadow: 0 0 0 4px var(--v100); }
+.step-dot.done   { background: var(--green600); color: #fff; }
+
+.step-line-seg {
+  flex: 1; height: 2px;
+  background: var(--g200);
+  transition: background .3s;
+}
+.step-line-seg.done { background: var(--green600); }
+
+.step-labels {
+  display: flex;
+  padding: 8px 32px 0;
+  direction: ltr;
+}
+.step-label-item {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--g400);
+  transition: color .3s;
+}
+.step-label-item.active { color: var(--v600); }
+.step-label-item.done   { color: var(--green600); }
+
+/* ── Content ── */
+.card-body {
+  padding: 24px 32px 20px;
+  min-height: 300px;
+}
+
+.step-panel { display: none; }
+.step-panel.active { display: block; }
+
+.step-title {
+  font-size: 20px; font-weight: 800;
+  color: var(--g900); margin-bottom: 8px;
+}
+.step-subtitle {
+  font-size: 14px; color: var(--g500);
+  margin-bottom: 24px; line-height: 1.6;
+}
+
+/* Feature list */
+.feature-list { display: flex; flex-direction: column; gap: 12px; }
+.feature-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: var(--v50);
+  border: 1px solid var(--v200);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.feature-icon {
+  font-size: 22px; flex-shrink: 0; margin-top: 1px;
+}
+.feature-text strong { display: block; font-size: 14px; font-weight: 700; color: var(--v700); }
+.feature-text span   { font-size: 13px; color: var(--g500); }
+
+/* Checklist */
+.checklist { display: flex; flex-direction: column; gap: 10px; }
+.check-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  background: var(--g50);
+  border: 1px solid var(--g200);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  user-select: none;
+}
+.check-item:hover { border-color: var(--v200); background: var(--v50); }
+.check-item.checked { border-color: var(--green600); background: var(--green100); }
+
+.check-box {
+  width: 20px; height: 20px;
+  border-radius: 6px;
+  border: 2px solid var(--g300);
+  background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 12px;
+  transition: background .15s, border-color .15s;
+}
+.check-item.checked .check-box {
+  background: var(--green600); border-color: var(--green600); color: #fff;
+}
+
+.check-info { flex: 1; }
+.check-info strong { display: block; font-size: 14px; font-weight: 700; }
+.check-info span   { font-size: 12px; color: var(--g500); }
+
+.check-link {
+  font-size: 11px; font-weight: 700;
+  color: var(--v600);
+  text-decoration: none;
+  border: 1px solid var(--v200);
+  background: var(--v50);
+  border-radius: 6px;
+  padding: 4px 10px;
+  white-space: nowrap;
+  direction: ltr;
+}
+.check-link:hover { background: var(--v100); }
+
+/* Steps numbered list */
+.num-steps { display: flex; flex-direction: column; gap: 14px; }
+.num-step {
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.num {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--v600); color: #fff;
+  font-size: 12px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px;
+}
+.num-content strong { display: block; font-size: 14px; font-weight: 700; }
+.num-content span   { font-size: 13px; color: var(--g500); }
+
+/* Code snippet */
+.code-snippet {
+  direction: ltr;
+  display: inline-block;
+  background: var(--g900);
+  color: #e2e8f0;
+  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  margin-top: 4px;
+  letter-spacing: .3px;
+}
+
+/* Settings table */
+.settings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.settings-table th {
+  text-align: right;
+  font-size: 11px; font-weight: 700; letter-spacing: .5px;
+  color: var(--g400);
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--g200);
+}
+.settings-table td {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--g100);
+  vertical-align: top;
+}
+.settings-table tr:last-child td { border-bottom: none; }
+.settings-table td:first-child {
+  font-weight: 700; color: var(--v700); width: 38%;
+  font-family: monospace; font-size: 12px;
+}
+.settings-table td:last-child { color: var(--g500); }
+
+/* Ready screen */
+.ready-hero {
+  text-align: center;
+  padding: 16px 0 24px;
+}
+.ready-emoji { font-size: 60px; margin-bottom: 12px; }
+.ready-title { font-size: 22px; font-weight: 800; color: var(--v700); margin-bottom: 8px; }
+.ready-sub   { font-size: 14px; color: var(--g500); margin-bottom: 28px; }
+
+.tip-list { display: flex; flex-direction: column; gap: 10px; }
+.tip-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  background: var(--g50); border: 1px solid var(--g200);
+  border-radius: 10px; font-size: 13px;
+}
+.tip-icon { font-size: 18px; flex-shrink: 0; }
+
+/* ── Nav ── */
+.card-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px 28px;
+  border-top: 1px solid var(--g100);
+}
+
+.progress-text {
+  font-size: 12px; color: var(--g400); font-weight: 500;
+}
+
+.nav-buttons { display: flex; gap: 10px; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 22px;
+  border-radius: 10px;
+  font-size: 14px; font-weight: 600;
+  border: none; cursor: pointer;
+  font-family: 'Vazirmatn', sans-serif;
+  transition: background .15s, transform .1s;
+}
+.btn:active { transform: scale(.97); }
+.btn-ghost {
+  background: var(--g100); color: var(--g700);
+}
+.btn-ghost:hover { background: var(--g200); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--v500), var(--v700));
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(124,58,237,.28);
+}
+.btn-primary:hover { filter: brightness(1.07); }
+.btn-primary:disabled {
+  opacity: .4; cursor: not-allowed; filter: none;
+}
+.btn-success {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff; box-shadow: 0 2px 10px rgba(34,197,94,.28);
+}
+.btn-success:hover { filter: brightness(1.07); }
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- ── Header ── -->
+  <div class="card-header">
+    <div class="logo-box"><img src="../../extension/icons/icon128.png" alt="PechPech"></div>
+    <div class="logo-text">
+      <h1>PechPech</h1>
+      <p>تولید خودکار صورت‌جلسه از ضبط صدا</p>
+    </div>
+  </div>
+
+  <!-- ── Step indicator ── -->
+  <div class="steps-bar" id="steps-bar">
+    <div class="step-dot active" id="dot-0">۱</div>
+    <div class="step-line-seg" id="seg-0"></div>
+    <div class="step-dot" id="dot-1">۲</div>
+    <div class="step-line-seg" id="seg-1"></div>
+    <div class="step-dot" id="dot-2">۳</div>
+    <div class="step-line-seg" id="seg-2"></div>
+    <div class="step-dot" id="dot-3">۴</div>
+    <div class="step-line-seg" id="seg-3"></div>
+    <div class="step-dot" id="dot-4">۵</div>
+  </div>
+  <div class="step-labels">
+    <div class="step-label-item active" id="lbl-0">خوش‌آمدید</div>
+    <div class="step-label-item" id="lbl-1">پیش‌نیازها</div>
+    <div class="step-label-item" id="lbl-2">نصب افزونه</div>
+    <div class="step-label-item" id="lbl-3">تنظیمات</div>
+    <div class="step-label-item" id="lbl-4">آماده‌اید!</div>
+  </div>
+
+  <!-- ── Content ── -->
+  <div class="card-body">
+
+    <!-- Step 0: Welcome -->
+    <div class="step-panel active" id="panel-0">
+      <p class="step-title">به PechPech خوش آمدید</p>
+      <p class="step-subtitle">
+        ابزاری برای تولید خودکار صورت‌جلسه — بدون هیچ یادداشت‌برداری در حین جلسه.
+        فقط ضبط کنید، بقیه کار را ما انجام می‌دهیم.
+      </p>
+      <div class="feature-list">
+        <div class="feature-item">
+          <span class="feature-icon">🎙</span>
+          <div class="feature-text">
+            <strong>ضبط صدای جلسه</strong>
+            <span>صدای تب مرورگر (Google Meet، Teams، Zoom Web) و میکروفون شما را همزمان ضبط می‌کند.</span>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon">📝</span>
+          <div class="feature-text">
+            <strong>تبدیل به متن با هوش مصنوعی</strong>
+            <span>صدا از طریق سرویس Whisper به متن تبدیل می‌شود. از شناسایی گویندگان مختلف پشتیبانی می‌کند.</span>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon">📄</span>
+          <div class="feature-text">
+            <strong>تولید صورت‌جلسه فارسی</strong>
+            <span>خلاصه، تصمیمات، و اقدامات جلسه را به صورت ساختارمند و فارسی تولید می‌کند.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 1: Prerequisites -->
+    <div class="step-panel" id="panel-1">
+      <p class="step-title">پیش‌نیازها</p>
+      <p class="step-subtitle">
+        قبل از شروع، مطمئن شوید موارد زیر روی سیستم شما نصب هستند.
+        هر مورد را پس از نصب تیک بزنید.
+      </p>
+      <div class="checklist">
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box">✓</div>
+          <div class="check-info">
+            <strong>Node.js (نسخه ۱۸ یا بالاتر)</strong>
+            <span>برای اجرای سرور محلی PechPech لازم است.</span>
+          </div>
+          <a class="check-link" href="https://nodejs.org" target="_blank" onclick="event.stopPropagation()">دانلود ↗</a>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box">✓</div>
+          <div class="check-info">
+            <strong>Docker Desktop</strong>
+            <span>برای اجرای سرویس پردازش صدا (audio-cleaner) لازم است.</span>
+          </div>
+          <a class="check-link" href="https://www.docker.com/products/docker-desktop" target="_blank" onclick="event.stopPropagation()">دانلود ↗</a>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box">✓</div>
+          <div class="check-info">
+            <strong>مرورگر Chrome (یا Brave / Edge)</strong>
+            <span>افزونه PechPech روی مرورگرهای مبتنی بر Chromium کار می‌کند.</span>
+          </div>
+          <a class="check-link" href="https://www.google.com/chrome" target="_blank" onclick="event.stopPropagation()">دانلود ↗</a>
+        </div>
+        <div class="check-item" onclick="toggleCheck(this)">
+          <div class="check-box">✓</div>
+          <div class="check-info">
+            <strong>Claude CLI (یا Gemini / Codex)</strong>
+            <span>برای تولید صورت‌جلسه توسط هوش مصنوعی لازم است.</span>
+          </div>
+          <a class="check-link" href="https://docs.anthropic.com/claude-code" target="_blank" onclick="event.stopPropagation()">راهنما ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Extension install -->
+    <div class="step-panel" id="panel-2">
+      <p class="step-title">نصب افزونه Chrome</p>
+      <p class="step-subtitle">
+        افزونه PechPech باید به صورت دستی در Chrome بارگذاری شود.
+        این فقط یک بار لازم است.
+      </p>
+      <div class="num-steps">
+        <div class="num-step">
+          <div class="num">۱</div>
+          <div class="num-content">
+            <strong>صفحه افزونه‌های Chrome را باز کنید</strong>
+            <span>در نوار آدرس Chrome تایپ کنید:</span><br>
+            <span class="code-snippet">chrome://extensions</span>
+          </div>
+        </div>
+        <div class="num-step">
+          <div class="num">۲</div>
+          <div class="num-content">
+            <strong>Developer mode را فعال کنید</strong>
+            <span>کلید «Developer mode» را در بالا سمت راست صفحه روشن کنید.</span>
+          </div>
+        </div>
+        <div class="num-step">
+          <div class="num">۳</div>
+          <div class="num-content">
+            <strong>روی «Load unpacked» کلیک کنید</strong>
+            <span>دکمه‌ای در بالا سمت چپ ظاهر می‌شود.</span>
+          </div>
+        </div>
+        <div class="num-step">
+          <div class="num">۴</div>
+          <div class="num-content">
+            <strong>پوشه extension را انتخاب کنید</strong>
+            <span>پوشه <span class="code-snippet">extension/</span> داخل دایرکتوری PechPech را انتخاب کنید.</span>
+          </div>
+        </div>
+        <div class="num-step">
+          <div class="num">۵</div>
+          <div class="num-content">
+            <strong>آیکون افزونه در نوار ابزار ظاهر می‌شود</strong>
+            <span>اگر نمایش نشد، روی آیکون پازل در نوار Chrome کلیک کرده و PechPech را پین کنید.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Settings -->
+    <div class="step-panel" id="panel-3">
+      <p class="step-title">تنظیمات</p>
+      <p class="step-subtitle">
+        روی آیکون افزونه در Chrome کلیک کنید، سپس آیکون تنظیمات (⚙) را بزنید.
+        این فیلدها را پر کنید:
+      </p>
+      <table class="settings-table">
+        <thead>
+          <tr>
+            <th>فیلد</th>
+            <th>توضیح</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>STT URL</td>
+            <td>آدرس سرور Whisper. مثال: <span class="code-snippet" style="font-size:11px">http://localhost:8080/v1</span></td>
+          </tr>
+          <tr>
+            <td>STT API Key</td>
+            <td>کلید API سرویس Whisper. برای سرورهای محلی خالی بگذارید.</td>
+          </tr>
+          <tr>
+            <td>STT Model</td>
+            <td>نام مدل. برای OpenAI: <span class="code-snippet" style="font-size:11px">whisper-1</span></td>
+          </tr>
+          <tr>
+            <td>LLM CLI</td>
+            <td>نوع مدل زبانی. پیشنهاد: <span class="code-snippet" style="font-size:11px">claude</span></td>
+          </tr>
+          <tr>
+            <td>Helper Port</td>
+            <td>پورت سرور محلی. پیش‌فرض: <span class="code-snippet" style="font-size:11px">3456</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Step 4: Ready -->
+    <div class="step-panel" id="panel-4">
+      <div class="ready-hero">
+        <div class="ready-emoji">🎉</div>
+        <p class="ready-title">آماده‌اید!</p>
+        <p class="ready-sub">PechPech در حال اجرا است و آماده ضبط اولین جلسه شماست.</p>
+      </div>
+      <div class="tip-list">
+        <div class="tip-item">
+          <span class="tip-icon">🎙</span>
+          <span>برای ضبط جلسه روی آیکون PechPech در نوار ابزار Chrome کلیک کنید.</span>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">⏹</span>
+          <span>در پایان جلسه «توقف و ذخیره» را بزنید، سپس روی «پردازش» کلیک کنید.</span>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">🖥</span>
+          <span>آیکون PechPech در نوار وظیفه سیستم شما همیشه در دسترس است. برای شروع خودکار با ورود به سیستم، «Launch on Login» را از منوی آیکون فعال کنید.</span>
+        </div>
+        <div class="tip-item">
+          <span class="tip-icon">📥</span>
+          <span>صورت‌جلسه نهایی را می‌توانید به صورت فایل Markdown دانلود کنید.</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /card-body -->
+
+  <!-- ── Navigation ── -->
+  <div class="card-nav">
+    <span class="progress-text" id="progress-text">مرحله ۱ از ۵</span>
+    <div class="nav-buttons">
+      <button class="btn btn-ghost hidden" id="btn-back" onclick="navigate(-1)">← قبلی</button>
+      <button class="btn btn-primary" id="btn-next" onclick="navigate(1)">بعدی ←</button>
+      <button class="btn btn-success hidden" id="btn-done" onclick="window.close()">شروع کنید ✓</button>
+    </div>
+  </div>
+
+</div><!-- /card -->
+
+<script>
+  const TOTAL = 5;
+  let current = 0;
+
+  const persianNums = ['۱','۲','۳','۴','۵'];
+
+  function navigate(dir) {
+    goTo(current + dir);
+  }
+
+  function goTo(n) {
+    if (n < 0 || n >= TOTAL) return;
+
+    // Update panels
+    document.getElementById('panel-' + current).classList.remove('active');
+    document.getElementById('panel-' + n).classList.add('active');
+
+    // Update dots and lines
+    for (let i = 0; i < TOTAL; i++) {
+      const dot = document.getElementById('dot-' + i);
+      const lbl = document.getElementById('lbl-' + i);
+      dot.className = 'step-dot' + (i < n ? ' done' : i === n ? ' active' : '');
+      dot.textContent = i < n ? '✓' : persianNums[i];
+      lbl.className = 'step-label-item' + (i < n ? ' done' : i === n ? ' active' : '');
+    }
+    for (let i = 0; i < TOTAL - 1; i++) {
+      const seg = document.getElementById('seg-' + i);
+      seg.className = 'step-line-seg' + (i < n ? ' done' : '');
+    }
+
+    current = n;
+
+    // Update nav buttons
+    const btnBack = document.getElementById('btn-back');
+    const btnNext = document.getElementById('btn-next');
+    const btnDone = document.getElementById('btn-done');
+    const progTxt = document.getElementById('progress-text');
+
+    btnBack.classList.toggle('hidden', n === 0);
+    btnNext.classList.toggle('hidden', n === TOTAL - 1);
+    btnDone.classList.toggle('hidden', n !== TOTAL - 1);
+    progTxt.textContent = 'مرحله ' + persianNums[n] + ' از ' + persianNums[TOTAL - 1];
+  }
+
+  function toggleCheck(el) {
+    el.classList.toggle('checked');
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+# prompts.yaml — LLM prompt templates for PechPech
+#
+# Edit freely. Two rules:
+#   1. Keep the ## section headings exactly as written — server.js parses output by matching them.
+#   2. Use {{transcript}} where the transcript text should be inserted.
+
+mom: |
+   You will receive a transcript of a meeting between multiple speakers. The transcript was produced automatically by a speech-to-text system, so it may contain errors: misheard words, phonetically similar substitutions, garbled proper nouns, missing punctuation, or run-on words.
+
+   Before generating the minutes, carefully read the transcript and use context clues from surrounding sentences to infer the intended meaning. Correct any STT errors you are confident about — wrong words, misheard technical terms, garbled names. If a phrase is genuinely unclear and you cannot confidently correct it, leave it as-is rather than guessing.
+   Analyze the conversation flow — question/answer pairs, topic shifts, changes in speaking style, discourse markers, and logical turn-taking — to detect when a different person is speaking.
+
+   Produce your response with exactly THREE sections in this order, using these exact headings:
+
+   ## خلاصه
+   A concise overview of what was discussed.
+
+   ## تصمیمات
+   Concrete decisions that were made during the meeting. If none were made, state that explicitly.
+
+   ## اقدامات
+   Concrete next steps or tasks, including the owner's name if mentioned and any deadline if mentioned. If none, state that explicitly.
+
+   Keep the entire output in Persian.
+
+   Do not include any content outside these three sections.
+
+   Transcript:
+   {{transcript}}
+
+correction: |
+  You will receive a raw meeting transcript produced by a speech-to-text system.
+  It may contain errors: misheard words, phonetically similar substitutions,
+  garbled proper nouns, missing punctuation.
+
+  Produce a single section with this exact heading:
+
+  ## متن اصلاح‌شده
+  1. Fix STT errors: correct misheard words, garbled terms, or wrong words where you are
+     confident based on context. Leave genuinely unclear phrases as-is.
+  2. Identify speaker turns: start each new speaker turn on a new line with "گوینده ۱:",
+     "گوینده ۲:", etc. Use their real name if mentioned. Omit labels if it is clearly
+     a single speaker throughout.
+
+  Keep the output in Persian. Do not add any content outside this section.
+
+  Transcript:
+  {{transcript}}

@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PechPech — راه‌اندازی</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --v50:  #f5f3ff; --v100: #ede9fe; --v200: #ddd6fe;
+      --v500: #8b5cf6; --v600: #7c3aed; --v700: #6d28d9;
+      --g50:  #f9fafb; --g100: #f3f4f6; --g200: #e5e7eb;
+      --g300: #d1d5db; --g400: #9ca3af; --g500: #6b7280;
+      --g700: #374151; --g900: #111827;
+      --green50: #f0fdf4; --green100: #dcfce7; --green200: #bbf7d0; --green600: #16a34a;
+      --amber50: #fffbeb; --amber200: #fde68a; --amber600: #d97706;
+      --red50:  #fef2f2; --red200: #fecaca; --red600: #dc2626;
+    }
+
+    html, body {
+      font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--g50);
+      color: var(--g900);
+      font-size: 15px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 80px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 8px 48px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.05);
+      width: 100%;
+      max-width: 640px;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    .card-header {
+      background: linear-gradient(135deg, var(--v700) 0%, var(--v500) 100%);
+      padding: 28px 32px 22px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .logo-box {
+      width: 52px; height: 52px;
+      background: rgba(255,255,255,.18);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; flex-shrink: 0;
+      overflow: hidden;
+    }
+    .logo-box img { width: 100%; height: 100%; object-fit: cover; }
+    .logo-text h1 { font-size: 22px; font-weight: 800; color: #fff; direction: ltr; }
+    .logo-text p  { font-size: 13px; color: rgba(255,255,255,.78); margin-top: 2px; }
+
+    /* ── Step bar ── */
+    .step-bar {
+      display: flex;
+      align-items: center;
+      padding: 20px 32px 0;
+    }
+    .step-pip {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--g200); color: var(--g400);
+      font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background .3s, color .3s;
+    }
+    .step-pip.active { background: var(--v600); color: #fff; box-shadow: 0 0 0 4px var(--v100); }
+    .step-pip.done   { background: var(--green600); color: #fff; }
+    .step-seg {
+      flex: 1; height: 2px; background: var(--g200);
+      transition: background .3s;
+    }
+    .step-seg.done { background: var(--green600); }
+
+    .step-labels {
+      display: flex;
+      padding: 6px 32px 0;
+    }
+    .step-lbl {
+      flex: 1; text-align: center;
+      font-size: 10px; font-weight: 600;
+      color: var(--g400);
+      transition: color .3s;
+    }
+    .step-lbl.active { color: var(--v600); }
+    .step-lbl.done   { color: var(--green600); }
+
+    /* ── Body ── */
+    .card-body {
+      padding: 28px 32px 20px;
+      min-height: 380px;
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .panel-title {
+      font-size: 20px; font-weight: 800;
+      color: var(--g900); margin-bottom: 6px;
+    }
+    .panel-sub {
+      font-size: 14px; color: var(--g500);
+      margin-bottom: 22px; line-height: 1.65;
+    }
+
+    /* ── Feature cards ── */
+    .feature-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .feat {
+      display: flex; align-items: flex-start; gap: 14px;
+      background: var(--v50); border: 1px solid var(--v200);
+      border-radius: 14px; padding: 16px;
+    }
+    .feat-icon { font-size: 26px; flex-shrink: 0; margin-top: 1px; line-height: 1; }
+    .feat-title { font-size: 14px; font-weight: 700; color: var(--v700); margin-bottom: 3px; }
+    .feat-desc  { font-size: 13px; color: var(--g500); line-height: 1.55; }
+
+    /* ── Architecture diagram ── */
+    .arch {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 8px 0 24px;
+      direction: ltr;
+      overflow-x: auto;
+    }
+    .arch-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .arch-box {
+      border-radius: 12px;
+      padding: 10px 14px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.35;
+      min-width: 82px;
+    }
+    .arch-icon { font-size: 20px; display: block; margin-bottom: 2px; }
+    .arch-label { font-size: 10px; color: var(--g400); font-weight: 500; }
+
+    .arch-box.ext  { background: var(--v100); color: var(--v700); border: 1.5px solid var(--v200); }
+    .arch-box.srv  { background: #eff6ff; color: #1e40af; border: 1.5px solid #bfdbfe; }
+    .arch-box.stt  { background: #f0fdf4; color: #15803d; border: 1.5px solid #bbf7d0; }
+    .arch-box.llm  { background: #fff7ed; color: #c2410c; border: 1.5px solid #fed7aa; }
+    .arch-box.out  { background: var(--g100); color: var(--g700); border: 1.5px solid var(--g200); }
+
+    .arch-arrow {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+      padding: 0 4px;
+    }
+    .arch-arrow-line {
+      width: 28px; height: 2px;
+      background: var(--g300);
+    }
+    .arch-arrow-tip {
+      font-size: 11px; color: var(--g400);
+      margin-top: -1px;
+    }
+    .arch-arrow-cap {
+      font-size: 9px; color: var(--g400);
+      font-weight: 500; text-align: center;
+      max-width: 40px;
+      line-height: 1.3;
+    }
+
+    .arch-flow-label {
+      font-size: 11px; font-weight: 600;
+      color: var(--g500); margin-bottom: 16px;
+      direction: rtl;
+    }
+
+    /* ── Setup steps ── */
+    .setup-steps { display: flex; flex-direction: column; gap: 12px; }
+    .setup-step {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding: 14px 16px;
+      background: var(--g50); border: 1px solid var(--g200);
+      border-radius: 12px;
+    }
+    .setup-num {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--v600); color: #fff;
+      font-size: 12px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .setup-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+    .setup-desc  { font-size: 13px; color: var(--g500); line-height: 1.55; }
+    .setup-desc code {
+      font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+      background: var(--g900); color: #e2e8f0;
+      padding: 2px 7px; border-radius: 5px;
+      font-size: 12px; direction: ltr; display: inline-block;
+    }
+
+    /* ── Connection panel ── */
+    .conn-status {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 18px;
+      border-radius: 12px; font-size: 14px; font-weight: 600;
+      margin-bottom: 20px;
+      border: 1.5px solid transparent;
+      transition: background .25s, border-color .25s;
+    }
+    .conn-status.checking { background: var(--g100); border-color: var(--g200); color: var(--g500); }
+    .conn-status.ok       { background: var(--green50); border-color: var(--green200); color: var(--green600); }
+    .conn-status.fail     { background: var(--red50);   border-color: var(--red200);   color: var(--red600); }
+
+    .conn-dot { width: 10px; height: 10px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .conn-dot.pulse { animation: pulse 1.3s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.65)} }
+
+    .conn-info {
+      background: var(--g50); border: 1px solid var(--g200);
+      border-radius: 12px; padding: 16px;
+      font-size: 13px; color: var(--g500); line-height: 1.6;
+    }
+    .conn-info strong { color: var(--g900); }
+    .conn-info code {
+      font-family: 'SF Mono', 'Menlo', monospace;
+      background: var(--g900); color: #e2e8f0;
+      padding: 2px 7px; border-radius: 5px;
+      font-size: 12px; direction: ltr; display: inline-block;
+    }
+
+    /* ── Ready panel ── */
+    .ready-hero { text-align: center; padding: 8px 0 20px; }
+    .ready-emoji { font-size: 64px; line-height: 1; margin-bottom: 12px; }
+    .ready-title { font-size: 24px; font-weight: 800; color: var(--v700); margin-bottom: 8px; }
+    .ready-sub   { font-size: 14px; color: var(--g500); margin-bottom: 28px; }
+
+    .tip-list { display: flex; flex-direction: column; gap: 10px; }
+    .tip {
+      display: flex; align-items: flex-start; gap: 12px;
+      background: var(--g50); border: 1px solid var(--g200);
+      border-radius: 12px; padding: 12px 16px;
+      font-size: 13px; color: var(--g700); line-height: 1.55;
+    }
+    .tip-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; line-height: 1; }
+
+    /* ── Nav ── */
+    .card-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 32px 28px;
+      border-top: 1px solid var(--g100);
+    }
+    .nav-progress { font-size: 12px; color: var(--g400); font-weight: 500; }
+    .nav-btns { display: flex; gap: 10px; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 22px; border-radius: 11px;
+      font-family: inherit; font-size: 14px; font-weight: 700;
+      border: none; cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-ghost   { background: var(--g100); color: var(--g700); }
+    .btn-ghost:hover { background: var(--g200); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--v500), var(--v700));
+      color: #fff; box-shadow: 0 2px 12px rgba(124,58,237,.3);
+    }
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-success {
+      background: linear-gradient(135deg, #22c55e, var(--green600));
+      color: #fff; box-shadow: 0 2px 10px rgba(34,197,94,.3);
+    }
+    .btn-success:hover { filter: brightness(1.08); }
+    .btn-recheck { background: var(--g100); color: var(--g700); margin-top: 12px; width: 100%; justify-content: center; }
+    .btn-recheck:hover { background: var(--g200); }
+    .btn-settings { background: var(--v100); color: var(--v700); margin-top: 8px; width: 100%; justify-content: center; }
+    .btn-settings:hover { background: var(--v200); }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- Header -->
+  <div class="card-header">
+    <div class="logo-box"><img src="icons/icon128.png" alt="PechPech"></div>
+    <div class="logo-text">
+      <h1>PechPech</h1>
+      <p>تولید خودکار صورت‌جلسه فارسی از جلسات آنلاین</p>
+    </div>
+  </div>
+
+  <!-- Step bar -->
+  <div class="step-bar" id="step-bar">
+    <div class="step-pip active" id="pip-0">۱</div>
+    <div class="step-seg"        id="seg-0"></div>
+    <div class="step-pip"        id="pip-1">۲</div>
+    <div class="step-seg"        id="seg-1"></div>
+    <div class="step-pip"        id="pip-2">۳</div>
+    <div class="step-seg"        id="seg-2"></div>
+    <div class="step-pip"        id="pip-3">۴</div>
+    <div class="step-seg"        id="seg-3"></div>
+    <div class="step-pip"        id="pip-4">۵</div>
+  </div>
+  <div class="step-labels">
+    <div class="step-lbl active" id="lbl-0">معرفی</div>
+    <div class="step-lbl"        id="lbl-1">نحوه کار</div>
+    <div class="step-lbl"        id="lbl-2">راه‌اندازی</div>
+    <div class="step-lbl"        id="lbl-3">اتصال</div>
+    <div class="step-lbl"        id="lbl-4">شروع</div>
+  </div>
+
+  <!-- Panels -->
+  <div class="card-body">
+
+    <!-- 0: Intro -->
+    <div class="panel active" id="panel-0">
+      <p class="panel-title">به PechPech خوش آمدید 👋</p>
+      <p class="panel-sub">
+        افزونه‌ای که جلسات آنلاین شما را ضبط می‌کند و بدون هیچ یادداشتی،
+        صورت‌جلسه فارسی آماده تحویل می‌دهد.
+      </p>
+      <div class="feature-grid">
+        <div class="feat">
+          <span class="feat-icon">🎙</span>
+          <div>
+            <div class="feat-title">ضبط هوشمند جلسه</div>
+            <div class="feat-desc">صدای تب مرورگر (Google Meet، Teams، Zoom Web) و میکروفون شما را همزمان ضبط و ترکیب می‌کند. هیچ نرم‌افزار جانبی لازم نیست.</div>
+          </div>
+        </div>
+        <div class="feat">
+          <span class="feat-icon">📝</span>
+          <div>
+            <div class="feat-title">تبدیل گفتار به متن با Whisper</div>
+            <div class="feat-desc">صدای ضبط‌شده به سرویس Whisper ارسال می‌شود و به متن دقیق فارسی تبدیل می‌گردد — با پشتیبانی از لهجه و اصطلاحات فنی.</div>
+          </div>
+        </div>
+        <div class="feat">
+          <span class="feat-icon">📄</span>
+          <div>
+            <div class="feat-title">صورت‌جلسه ساختارمند</div>
+            <div class="feat-desc">یک مدل زبانی (Claude، GPT یا هر LLM دیگری) متن را تحلیل کرده و خلاصه، تصمیمات، و اقدامات جلسه را به فارسی می‌نویسد.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1: How it works -->
+    <div class="panel" id="panel-1">
+      <p class="panel-title">چطور کار می‌کند؟</p>
+      <p class="panel-sub">PechPech از چهار بخش تشکیل شده که با هم کار می‌کنند:</p>
+
+      <div class="arch-flow-label">جریان پردازش — از ضبط تا صورت‌جلسه:</div>
+      <div class="arch">
+        <div class="arch-node">
+          <div class="arch-box ext"><span class="arch-icon">🖥</span>افزونه<br/>Chrome</div>
+          <div class="arch-label">ضبط صدا</div>
+        </div>
+        <div class="arch-arrow">
+          <div class="arch-arrow-line"></div>
+          <div class="arch-arrow-tip">›</div>
+          <div class="arch-arrow-cap">فایل صوتی</div>
+        </div>
+        <div class="arch-node">
+          <div class="arch-box srv"><span class="arch-icon">⚙️</span>سرور<br/>محلی</div>
+          <div class="arch-label">Node.js</div>
+        </div>
+        <div class="arch-arrow">
+          <div class="arch-arrow-line"></div>
+          <div class="arch-arrow-tip">›</div>
+          <div class="arch-arrow-cap">صدای پاکیزه</div>
+        </div>
+        <div class="arch-node">
+          <div class="arch-box stt"><span class="arch-icon">🗣</span>سرویس<br/>Whisper</div>
+          <div class="arch-label">تبدیل به متن</div>
+        </div>
+        <div class="arch-arrow">
+          <div class="arch-arrow-line"></div>
+          <div class="arch-arrow-tip">›</div>
+          <div class="arch-arrow-cap">متن جلسه</div>
+        </div>
+        <div class="arch-node">
+          <div class="arch-box llm"><span class="arch-icon">🤖</span>مدل<br/>زبانی</div>
+          <div class="arch-label">Claude / GPT</div>
+        </div>
+        <div class="arch-arrow">
+          <div class="arch-arrow-line"></div>
+          <div class="arch-arrow-tip">›</div>
+          <div class="arch-arrow-cap">MOM نهایی</div>
+        </div>
+        <div class="arch-node">
+          <div class="arch-box out"><span class="arch-icon">📄</span>صورت‌<br/>جلسه</div>
+          <div class="arch-label">Markdown فارسی</div>
+        </div>
+      </div>
+
+      <div class="setup-steps">
+        <div class="setup-step">
+          <div class="setup-num">۱</div>
+          <div>
+            <div class="setup-title">افزونه Chrome</div>
+            <div class="setup-desc">صدای جلسه را ضبط و به سرور محلی ارسال می‌کند. همه پردازش‌ها روی سیستم خودتان انجام می‌شود — هیچ داده‌ای به سرور خارجی نمی‌رود.</div>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="setup-num">۲</div>
+          <div>
+            <div class="setup-title">سرور محلی (Node.js)</div>
+            <div class="setup-desc">فایل صوتی را دریافت، پاکسازی و به Whisper ارسال می‌کند. متن دریافتی را به LLM می‌دهد و صورت‌جلسه نهایی را ذخیره می‌کند.</div>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="setup-num">۳</div>
+          <div>
+            <div class="setup-title">Whisper STT</div>
+            <div class="setup-desc">یک سرویس محلی یا ابری سازگار با OpenAI API که صدا را به متن فارسی تبدیل می‌کند. می‌توانید از Groq، OpenAI، یا whisper.cpp محلی استفاده کنید.</div>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="setup-num">۴</div>
+          <div>
+            <div class="setup-title">مدل زبانی (LLM)</div>
+            <div class="setup-desc">Claude Code (پیشنهادی)، یا هر API سازگار با OpenAI، یا هر CLI سفارشی. متن جلسه را تحلیل و صورت‌جلسه می‌نویسد.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2: Setup -->
+    <div class="panel" id="panel-2">
+      <p class="panel-title">راه‌اندازی اولیه</p>
+      <p class="panel-sub">
+        اگر هنوز سرور را نصب نکرده‌اید، این مراحل را طی کنید.
+        اگر قبلاً <code style="font-family:monospace;background:var(--g100);padding:1px 6px;border-radius:4px;font-size:13px">install.sh</code> را اجرا کرده‌اید، از این مرحله رد شوید.
+      </p>
+      <div class="setup-steps">
+        <div class="setup-step">
+          <div class="setup-num">۱</div>
+          <div>
+            <div class="setup-title">پیش‌نیازها را نصب کنید</div>
+            <div class="setup-desc">
+              Node.js 18+، Docker Desktop، و Claude CLI (یا هر LLM دیگری) روی سیستم داشته باشید.
+            </div>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="setup-num">۲</div>
+          <div>
+            <div class="setup-title">اسکریپت نصب را اجرا کنید</div>
+            <div class="setup-desc">
+              در پوشه اصلی PechPech:<br/>
+              <code>chmod +x install.sh && ./install.sh</code><br/>
+              این اسکریپت Whisper و تنظیمات LLM را پیکربندی می‌کند.
+            </div>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="setup-num">۳</div>
+          <div>
+            <div class="setup-title">سرور را اجرا کنید</div>
+            <div class="setup-desc">
+              <code>node src/launcher/index.js</code><br/>
+              سرور روی پورت ۳۴۵۶ بالا می‌آید. این پنجره را باز نگه دارید.
+            </div>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="setup-num">۴</div>
+          <div>
+            <div class="setup-title">افزونه را در Chrome بارگذاری کنید</div>
+            <div class="setup-desc">
+              به <code>chrome://extensions</code> بروید، Developer mode را روشن کنید،
+              روی «Load unpacked» کلیک کنید و پوشه <code>src/extension</code> را انتخاب کنید.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3: Connection -->
+    <div class="panel" id="panel-3">
+      <p class="panel-title">بررسی اتصال</p>
+      <p class="panel-sub">بیایید مطمئن شویم سرور محلی در حال اجرا است.</p>
+
+      <div class="conn-status checking" id="conn-status">
+        <div class="conn-dot pulse" id="conn-dot"></div>
+        <span id="conn-text">در حال بررسی…</span>
+      </div>
+
+      <div class="conn-info" id="conn-info">
+        <strong>سرور هنوز راه‌اندازی نشده؟</strong><br/>
+        در ترمینال اجرا کنید:<br/>
+        <code>node src/launcher/index.js</code><br/><br/>
+        سپس دکمه «بررسی مجدد» را بزنید.
+      </div>
+
+      <button class="btn btn-recheck" id="btn-recheck">↺ بررسی مجدد اتصال</button>
+      <button class="btn btn-settings" id="btn-settings">⚙ باز کردن تنظیمات افزونه</button>
+    </div>
+
+    <!-- 4: Ready -->
+    <div class="panel" id="panel-4">
+      <div class="ready-hero">
+        <div class="ready-emoji">🎉</div>
+        <p class="ready-title">آماده‌اید!</p>
+        <p class="ready-sub">PechPech نصب شده و منتظر اولین جلسه شماست.</p>
+      </div>
+      <div class="tip-list">
+        <div class="tip">
+          <span class="tip-icon">🎙</span>
+          <span>در جلسه بعدی، تب Google Meet یا Teams را باز کنید، روی آیکون PechPech در نوار Chrome کلیک کنید و <strong>شروع ضبط</strong> را بزنید.</span>
+        </div>
+        <div class="tip">
+          <span class="tip-icon">⏹</span>
+          <span>در پایان جلسه <strong>توقف و ذخیره</strong> را بزنید. فایل صوتی به سرور ارسال می‌شود و پردازش شروع می‌شود.</span>
+        </div>
+        <div class="tip">
+          <span class="tip-icon">📄</span>
+          <span>چند دقیقه صبر کنید. صورت‌جلسه نهایی (خلاصه + تصمیمات + اقدامات) در پاپ‌آپ افزونه ظاهر می‌شود.</span>
+        </div>
+        <div class="tip">
+          <span class="tip-icon">✏️</span>
+          <span>اگر متن جلسه نیاز به اصلاح دارد، دکمه <strong>اصلاح رونوشت</strong> را بزنید تا LLM متن را بازبینی کند.</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Nav -->
+  <div class="card-nav">
+    <span class="nav-progress" id="nav-progress">مرحله ۱ از ۵</span>
+    <div class="nav-btns">
+      <button class="btn btn-ghost hidden" id="btn-back">قبلی →</button>
+      <button class="btn btn-primary"       id="btn-next">← بعدی</button>
+      <button class="btn btn-success hidden" id="btn-done">شروع کنید ✓</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="onboarding.js"></script>
+</body>
+</html>

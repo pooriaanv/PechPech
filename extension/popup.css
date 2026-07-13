@@ -211,13 +211,109 @@ body {
   justify-content: space-between;
 }
 
-.rec-date {
+/* ── Recording card title / meta area ──────────────────────────── */
+.rec-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.rec-title-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rec-title-text {
   font-size: 12px;
   font-weight: 600;
-  color: var(--g700);
+  color: var(--g500);
+  direction: ltr;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  min-width: 0;
+  flex: 1;
+}
+
+.rec-title-text.has-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--g900);
+  direction: rtl;
+}
+
+.rec-date-sub {
+  font-size: 11px;
+  color: var(--g400);
   direction: ltr;
   font-variant-numeric: tabular-nums;
 }
+
+/* Pencil button — only visible on card hover */
+.rec-edit-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--g300);
+  padding: 3px;
+  border-radius: 4px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 0;
+  transition: color .15s, background .15s;
+}
+.rec-card:hover .rec-edit-btn { display: flex; }
+.rec-edit-btn:hover { color: var(--v600); background: var(--v50); }
+
+/* Inline title edit */
+.rec-title-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rec-title-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-family: 'Vazirmatn', system-ui, sans-serif;
+  font-weight: 600;
+  color: var(--g900);
+  border: 1.5px solid var(--v400);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  outline: none;
+  background: #fff;
+  direction: rtl;
+  box-shadow: 0 0 0 3px rgba(167,139,250,.15);
+}
+
+.title-action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 0;
+  transition: background .12s, color .12s;
+}
+.title-save-btn   { color: var(--green700); }
+.title-save-btn:hover   { background: var(--green100); }
+.title-cancel-btn { color: var(--g400); }
+.title-cancel-btn:hover { background: var(--g100); color: var(--red600); }
 
 /* ── Badge ──────────────────────────────────────────────────────── */
 .badge {

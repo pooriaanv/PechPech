@@ -81,7 +81,7 @@ class RecordingStore {
     fs.writeFileSync(path.join(this.audioDir, `${id}.${ext}`), audioBuffer);
     this._records[id] = {
       id, filename: `${id}.${ext}`, mimeType: mimeType || 'audio/webm',
-      status: 'saved', createdAt: Date.now(),
+      status: 'saved', createdAt: Date.now(), title: null,
       transcript: null, summary: null, decisions: null, action_items: null, error: null,
       corrected_transcript: null, correction_status: null, correction_error: null,
     };
@@ -147,7 +147,7 @@ app.use(cors({
       callback(new Error(`CORS: origin not allowed: ${origin}`));
     }
   },
-  methods:        ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  methods:        ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
@@ -200,6 +200,17 @@ app.get('/recordings/:id', (req, res) => {
   const rec = store.get(req.params.id);
   if (!rec) return res.status(404).json({ error: 'Recording not found.' });
   res.json(rec);
+});
+
+// ── PATCH /recordings/:id ─────────────────────────────────────────
+// Accepts { title } — sets or clears the display name of a recording.
+app.patch('/recordings/:id', express.json(), (req, res) => {
+  const rec = store.get(req.params.id);
+  if (!rec) return res.status(404).json({ error: 'Recording not found.' });
+  const raw   = req.body?.title;
+  const title = typeof raw === 'string' ? raw.trim().slice(0, 80) || null : null;
+  store.update(req.params.id, { title });
+  res.json(store.get(req.params.id));
 });
 
 // ── DELETE /recordings/:id ────────────────────────────────────────

@@ -76,9 +76,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       break;
 
-    case 'AUDIO_DATA':
+    case 'AUDIO_SAVED':
       if (stopResolver) {
-        stopResolver({ success: true, audioData: msg.audioData, mimeType: msg.mimeType });
+        stopResolver({ success: true, id: msg.id });
         stopResolver = null;
       }
       clearState();
@@ -136,7 +136,8 @@ async function handleStart(sendResponse) {
     // these two lines the state is already persisted.
     await saveState({ isRecording: true, recordingTabId: tab.id, startedAt: Date.now() });
 
-    chrome.runtime.sendMessage({ type: 'START_CAPTURE', streamId, tabId: tab.id });
+    const { helperPort } = await chrome.storage.local.get(['helperPort']);
+    chrome.runtime.sendMessage({ type: 'START_CAPTURE', streamId, tabId: tab.id, helperPort: helperPort || 3456 });
 
     sendResponse({ success: true, startedAt: _state.startedAt });
 
@@ -175,15 +176,15 @@ async function handleStop(sendResponse) {
 
     chrome.runtime.sendMessage({ type: 'STOP_CAPTURE' });
 
-    // Safety timeout: if offscreen doesn't respond in 30s, give up
+    // Safety timeout: offscreen encodes + uploads to localhost (fast), but give 3 min for huge files
     setTimeout(async () => {
       if (stopResolver) {
-        stopResolver({ success: false, error: 'زمان انتظار برای دریافت صدا به پایان رسید.' });
+        stopResolver({ success: false, error: 'زمان انتظار برای ذخیره ضبط به پایان رسید.' });
         stopResolver = null;
         await clearState();
         closeOffscreenDocument();
       }
-    }, 30_000);
+    }, 180_000);
 
   } catch (err) {
     console.error('[background] Stop error:', err);

@@ -6,7 +6,7 @@
  *  2. Background receives READY, then sends START_CAPTURE { streamId }
  *  3. Opens tab audio stream via chromeMediaSource + mic (falls back to tab-only if mic denied)
  *  4. Mixes both via Web Audio API → MediaRecorder
- *  5. On STOP_CAPTURE, finalizes recording and sends audio blob (base64) back
+ *  5. On STOP_CAPTURE, finalizes recording and POSTs it directly to the local server
  */
 
 let mediaRecorder = null;
@@ -15,11 +15,13 @@ let audioContext  = null;
 let tabStream     = null;
 let micStream     = null;
 let destination   = null;
+let helperPort    = 3456;
 
 // ── Message handler ───────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'START_CAPTURE') {
+    helperPort = msg.helperPort || 3456;
     startCapture(msg.streamId)
       .then(() => sendResponse({ success: true }))
       .catch((err) => {
@@ -118,6 +120,8 @@ async function startCapture(streamId) {
 }
 
 // ── Stop Capture ──────────────────────────────────────────────────
+// Uploads the blob directly to the local server instead of passing it
+// through Chrome message channels (which have a ~64 MB IPC limit).
 
 async function stopCapture() {
   return new Promise((resolve, reject) => {
@@ -130,17 +134,29 @@ async function stopCapture() {
       try {
         const mimeType  = mediaRecorder.mimeType;
         const audioBlob = new Blob(audioChunks, { type: mimeType });
-        const base64    = await blobToBase64(audioBlob);
 
-        chrome.runtime.sendMessage({
-          type:      'AUDIO_DATA',
-          audioData: base64,
-          mimeType:  mimeType,
+        const form = new FormData();
+        form.append('audio', audioBlob, 'recording.webm');
+
+        const res = await fetch(`http://localhost:${helperPort}/transcribe-and-summarize`, {
+          method: 'POST',
+          body:   form,
         });
 
+        if (!res.ok) {
+          const detail = await res.text().catch(() => `HTTP ${res.status}`);
+          throw new Error(`Server error: ${detail}`);
+        }
+
+        const { id } = await res.json();
+        chrome.runtime.sendMessage({ type: 'AUDIO_SAVED', id });
         cleanup();
         resolve();
       } catch (err) {
+        const detail = `${err.name}: ${err.message}`;
+        console.error('[offscreen] Upload error:', detail);
+        chrome.runtime.sendMessage({ type: 'OFFSCREEN_ERROR', error: detail });
+        cleanup();
         reject(err);
       }
     };
@@ -164,14 +180,6 @@ function getSupportedMimeType() {
   return '';
 }
 
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result.split(',')[1]);
-    reader.onerror   = reject;
-    reader.readAsDataURL(blob);
-  });
-}
 
 function cleanup() {
   try {

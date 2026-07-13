@@ -185,6 +185,7 @@ function startPolling(recordingId) {
         stopPolling();
         const mom = {
           id:                   rec.id,
+          title:                rec.title                 || null,
           summary:              rec.summary               || '',
           decisions:            rec.decisions             || '',
           action_items:         rec.action_items          || '',
@@ -295,6 +296,99 @@ const player = new AudioPlayer();
 
 // ── Recordings List ───────────────────────────────────────────────
 
+const PENCIL_SVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+const CHECK_SVG  = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+const CLOSE_SVG  = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function fmtDate(createdAt) {
+  const d = new Date(createdAt);
+  return d.toLocaleDateString('fa-IR') + ' ' +
+         d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function buildMeta(r) {
+  const date = fmtDate(r.createdAt);
+  return `
+    <div class="rec-title-row">
+      <span class="rec-title-text${r.title ? ' has-title' : ''}">${r.title ? escapeHtml(r.title) : date}</span>
+      <button class="rec-edit-btn" title="ویرایش نام" aria-label="ویرایش نام">${PENCIL_SVG}</button>
+    </div>
+    ${r.title ? `<span class="rec-date-sub" dir="ltr">${date}</span>` : ''}
+  `;
+}
+
+function wireMeta(meta, rec, port) {
+  if (!meta) return;
+  const editBtn   = meta.querySelector('.rec-edit-btn');
+  const titleText = meta.querySelector('.rec-title-text');
+  if (editBtn)   editBtn.addEventListener('click',   e => { e.stopPropagation(); enterTitleEdit(meta, rec, port); });
+  if (titleText) titleText.addEventListener('click', e => { e.stopPropagation(); enterTitleEdit(meta, rec, port); });
+}
+
+function enterTitleEdit(meta, rec, port) {
+  if (meta.dataset.editing) return;
+  meta.dataset.editing = '1';
+
+  meta.innerHTML = `
+    <div class="rec-title-edit-row">
+      <input class="rec-title-input" type="text" value="${escapeHtml(rec.title || '')}"
+             placeholder="نام جلسه..." maxlength="80" dir="rtl">
+      <button class="title-action-btn title-save-btn"   title="ذخیره (Enter)">${CHECK_SVG}</button>
+      <button class="title-action-btn title-cancel-btn" title="انصراف (Esc)">${CLOSE_SVG}</button>
+    </div>
+  `;
+
+  const input     = meta.querySelector('.rec-title-input');
+  const saveBtn   = meta.querySelector('.title-save-btn');
+  const cancelBtn = meta.querySelector('.title-cancel-btn');
+
+  input.focus();
+
+  async function doSave() {
+    if (!meta.dataset.editing) return;
+    delete meta.dataset.editing;
+    const newTitle = input.value.trim().slice(0, 80) || null;
+    try {
+      await fetch(`http://localhost:${port}/recordings/${rec.id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ title: newTitle }),
+      });
+      rec.title = newTitle;
+    } catch (_) { /* silently revert to old title */ }
+    meta.innerHTML = buildMeta(rec);
+    wireMeta(meta, rec, port);
+  }
+
+  function doCancel() {
+    if (!meta.dataset.editing) return;
+    delete meta.dataset.editing;
+    meta.innerHTML = buildMeta(rec);
+    wireMeta(meta, rec, port);
+  }
+
+  // Prevent input blur when clicking action buttons
+  saveBtn.addEventListener('mousedown',   e => e.preventDefault());
+  cancelBtn.addEventListener('mousedown', e => e.preventDefault());
+  saveBtn.addEventListener('click',   doSave);
+  cancelBtn.addEventListener('click',  doCancel);
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter')  { e.preventDefault(); doSave();   }
+    if (e.key === 'Escape') { e.preventDefault(); doCancel(); }
+  });
+  input.addEventListener('blur', doSave);
+}
+
 async function loadRecordingsList() {
   el.recList.innerHTML = '<div class="rec-empty">در حال بارگذاری…</div>';
   try {
@@ -322,9 +416,6 @@ async function loadRecordingsList() {
 }
 
 function buildCard(r) {
-  const d     = new Date(r.createdAt);
-  const date  = d.toLocaleDateString('fa-IR') + '  ' +
-                d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
   const labels = {
     saved:        'ذخیره شده',
     done:         '✓ آماده',
@@ -376,7 +467,7 @@ function buildCard(r) {
   return `
     <div class="rec-card" data-rec-id="${r.id}">
       <div class="rec-top">
-        <span class="rec-date">${date}</span>
+        <div class="rec-meta">${buildMeta(r)}</div>
         <span class="badge badge-${r.status}">${badge}</span>
       </div>
       ${playerHTML}
@@ -405,6 +496,7 @@ function wireCardEvents(list, port, settings) {
       if (!r) return;
       currentMOM = {
         id:                   r.id,
+        title:                r.title                 || null,
         summary:              r.summary               || '',
         decisions:            r.decisions             || '',
         action_items:         r.action_items          || '',
@@ -430,6 +522,12 @@ function wireCardEvents(list, port, settings) {
       }).catch(() => {});
       loadRecordingsList();
     });
+  });
+
+  // Title editing
+  el.recList.querySelectorAll('.rec-card').forEach(card => {
+    const rec = list.find(x => x.id === card.dataset.recId);
+    if (rec) wireMeta(card.querySelector('.rec-meta'), rec, port);
   });
 }
 
@@ -557,51 +655,25 @@ el.btnStop.addEventListener('click', () => {
       showError(msg);
       return;
     }
-    await uploadAudio(response.audioData, response.mimeType);
-  });
-});
-
-async function uploadAudio(audioData, mimeType) {
-  try {
-    const settings = await loadSettings();
-    const port     = settings.helperPort || 3456;
-
-    const bytes    = Uint8Array.from(atob(audioData), c => c.charCodeAt(0));
-    const blob     = new Blob([bytes], { type: mimeType || 'audio/webm' });
-    const form     = new FormData();
-    form.append('audio',       blob,                    'recording.webm');
-
-    const res  = await fetch(`http://localhost:${port}/transcribe-and-summarize`, {
-      method: 'POST', body: form,
-    });
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
-
-    // Recording saved — go back to idle and refresh list
+    // Offscreen doc uploaded directly to server — recording is already saved
     await clearSession();
     showState('idle');
     await loadRecordingsList();
-
-  } catch (err) {
-    let msg = err.message || 'خطای ناشناخته';
-    if (msg.toLowerCase().includes('fetch') || msg.includes('Failed to fetch')) {
-      msg = 'اتصال به سرور محلی برقرار نشد.';
-    }
-    await saveSession({ popupState: 'error', errorMsg: msg });
-    showError(msg);
-  }
-}
+  });
+});
 
 // ── Save MOM ──────────────────────────────────────────────────────
 
 el.btnSave.addEventListener('click', () => {
   if (!currentMOM) return;
-  const now  = new Date();
-  const date = now.toISOString().slice(0, 10);
-  const time = now.toTimeString().slice(0, 5);
-  const md   = [
-    `# صورت‌جلسه — ${date} ${time}`, '',
+  const now      = new Date();
+  const date     = now.toISOString().slice(0, 10);
+  const time     = now.toTimeString().slice(0, 5);
+  const heading  = currentMOM.title
+    ? `# ${currentMOM.title} — ${date} ${time}`
+    : `# صورت‌جلسه — ${date} ${time}`;
+  const md = [
+    heading, '',
     '## خلاصه', currentMOM.summary || '—', '',
     '## تصمیمات', currentMOM.decisions || '—', '',
     '## اقدامات', currentMOM.action_items || '—', '',
@@ -611,9 +683,12 @@ el.btnSave.addEventListener('click', () => {
     '---', '*تولید شده توسط PechPech*',
   ].join('\n');
 
-  const a  = Object.assign(document.createElement('a'), {
+  const safeTitle  = currentMOM.title
+    ? currentMOM.title.replace(/[<>:"/\\|?*]/g, '').trim().replace(/\s+/g, '_').slice(0, 40)
+    : 'MOM';
+  const a = Object.assign(document.createElement('a'), {
     href:     URL.createObjectURL(new Blob([md], { type: 'text/markdown;charset=utf-8' })),
-    download: `MOM_${date}_${time.replace(':', '-')}.md`,
+    download: `${safeTitle}_${date}_${time.replace(':', '-')}.md`,
   });
   a.click();
   URL.revokeObjectURL(a.href);

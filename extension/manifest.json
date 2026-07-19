@@ -8,7 +8,9 @@
     "storage",
     "offscreen",
     "scripting",
-    "activeTab"
+    "activeTab",
+    "tabs",
+    "notifications"
   ],
   "host_permissions": [
     "http://localhost/*",

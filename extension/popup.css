@@ -814,3 +814,114 @@ body {
   word-break: break-word;
   max-width: 100%;
 }
+
+/* ── Mode Toggle ─────────────────────────────────────────────────── */
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  background: var(--g100);
+  border-radius: 99px;
+  padding: 3px;
+  width: fit-content;
+  margin: 0 auto 16px;
+  gap: 2px;
+}
+.mode-toggle-btn {
+  font-family: 'Vazirmatn', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 18px;
+  border-radius: 99px;
+  border: none;
+  cursor: pointer;
+  color: var(--g400);
+  background: transparent;
+  transition: background .15s, color .15s, box-shadow .15s;
+  white-space: nowrap;
+}
+.mode-toggle-btn.active {
+  background: #fff;
+  color: var(--v700);
+  box-shadow: 0 1px 4px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.06);
+}
+.mode-toggle-btn:focus-visible {
+  outline: 2px solid var(--v400);
+  outline-offset: 1px;
+}
+
+/* ── Recording Mode Indicator ────────────────────────────────────── */
+.rec-mode-indicator {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--g400);
+  text-align: center;
+  direction: rtl;
+  margin-bottom: 12px;
+}
+.rec-mode-indicator span { color: var(--v600); font-weight: 700; }
+
+/* ── Mode Badge on Done Cards ────────────────────────────────────── */
+.rec-badge-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+.rec-mode-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 99px;
+}
+.rec-mode-badge--mom   { background: var(--v50); color: var(--v700); border: 1px solid var(--v200); }
+.rec-mode-badge--notes { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+
+/* ── Notes Result Card ───────────────────────────────────────────── */
+.notes-card {
+  border: 1px solid var(--g200);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 10px;
+}
+.notes-block { background: #fff; padding: 14px 16px; }
+.notes-block-head { margin-bottom: 10px; }
+.notes-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  color: var(--v700);
+}
+.notes-list {
+  margin: 0;
+  padding-right: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  list-style: none;
+}
+.notes-list-item {
+  font-size: 13px;
+  color: var(--g700);
+  line-height: 1.7;
+  direction: rtl;
+  text-align: right;
+  position: relative;
+}
+.notes-list-item::before {
+  content: '•';
+  position: absolute;
+  right: -14px;
+  color: var(--v400);
+  font-size: 14px;
+  line-height: inherit;
+}
+.notes-empty-msg {
+  font-size: 13px;
+  color: var(--g400);
+  font-style: italic;
+  text-align: center;
+  padding: 6px 0 4px;
+}

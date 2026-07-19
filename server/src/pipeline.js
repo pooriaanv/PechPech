@@ -12,6 +12,7 @@ const yaml   = require('js-yaml');
 const PROMPTS = yaml.load(fs.readFileSync(path.join(__dirname, 'prompts.yaml'), 'utf8'));
 
 const buildMOMPrompt        = t => PROMPTS.mom.replace('{{transcript}}',        t);
+const buildNotesPrompt      = t => PROMPTS.notes.replace('{{transcript}}',      t);
 const buildCorrectionPrompt = t => PROMPTS.correction.replace('{{transcript}}', t);
 
 // ── MOM Output Parser ─────────────────────────────────────────────
@@ -181,18 +182,31 @@ async function transcribeAudio({ audioBuffer, audioMimeType, sttUrl, sttKey, stt
   return transcript;
 }
 
+// ── Notes Output Parser ───────────────────────────────────────────
+
+function parseNotesOutput(text) {
+  const normalized = text.replace(/\r\n/g, '\n').trim();
+  const match      = normalized.match(/##\s*یادداشت‌ها[^\n]*\n([\s\S]*)/i);
+  const raw        = match ? match[1].trim() : normalized;
+  const lines      = raw
+    .split('\n')
+    .map(l => l.replace(/^[\s\-•*]+/, '').trim())
+    .filter(Boolean);
+  return lines.join('\n');
+}
+
 // ── Pipeline Factory ──────────────────────────────────────────────
 // createPipeline({ store, createProvider }) → { run, correct }
 //
-// run(id, config)     — STT → MOM prompt → LLM → parse → store
-// correct(id, config) — correction prompt → LLM → parse → store
+// run(id, config, mode)  — STT → prompt (mom|notes) → LLM → parse → store
+// correct(id, config)    — correction prompt → LLM → parse → store
 //
 // Both methods are fire-and-forget safe: all errors are caught and
 // written to the store rather than thrown to the caller.
 
 function createPipeline({ store, createProvider }) {
   return {
-    async run(id, config) {
+    async run(id, config, mode = 'mom') {
       try {
         const rec = store.get(id);
         if (!rec) throw new Error(`Recording not found: ${id}`);
@@ -225,18 +239,25 @@ function createPipeline({ store, createProvider }) {
           store.update(id, { transcript, status: 'summarizing' });
         }
 
-        const provider  = createProvider(config);
-        const llmOutput = await provider.invoke(buildMOMPrompt(transcript));
-        const mom       = parseMOMOutput(llmOutput);
+        const provider = createProvider(config);
 
-        store.update(id, {
-          status:       'done',
-          summary:      mom.summary      || '',
-          decisions:    mom.decisions    || '',
-          action_items: mom.action_items || '',
-          ...(mom._parse_warning ? { warning: mom._parse_warning } : {}),
-        });
-        console.log(`[pipeline] ${id} done`);
+        if (mode === 'notes') {
+          const llmOutput = await provider.invoke(buildNotesPrompt(transcript));
+          const notes     = parseNotesOutput(llmOutput);
+          store.update(id, { status: 'done', mode: 'notes', notes });
+        } else {
+          const llmOutput = await provider.invoke(buildMOMPrompt(transcript));
+          const mom       = parseMOMOutput(llmOutput);
+          store.update(id, {
+            status:       'done',
+            mode:         'mom',
+            summary:      mom.summary      || '',
+            decisions:    mom.decisions    || '',
+            action_items: mom.action_items || '',
+            ...(mom._parse_warning ? { warning: mom._parse_warning } : {}),
+          });
+        }
+        console.log(`[pipeline] ${id} done (mode: ${mode})`);
 
       } catch (err) {
         console.error(`[pipeline] ${id} failed:`, err.message);

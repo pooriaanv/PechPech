@@ -232,10 +232,49 @@ async function closeOffscreenDocument() {
 // ── Tab close guard ───────────────────────────────────────────────
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
+  _notifiedTabs.delete(tabId);
   const state = await readState();
   if (tabId === state.recordingTabId && state.isRecording) {
     console.warn('[background] Recording tab closed during recording.');
     if (stopResolver) return;
     chrome.runtime.sendMessage({ type: 'STOP_CAPTURE' });
   }
+});
+
+// ── Meeting URL Detection ─────────────────────────────────────────
+
+const MEETING_PATTERNS = [
+  /^https:\/\/meet\.google\.com\/[a-z]+-[a-z]+-[a-z]+/,  // Google Meet room
+  /^https:\/\/[\w.-]+\.zoom\.us\/j\//,                     // Zoom web meeting
+  /^https:\/\/teams\.microsoft\.com\/l\/meetup-join\//,    // Teams meeting
+  /^https:\/\/teams\.live\.com\/meet\//,                   // Teams personal
+];
+
+// In-memory cooldown: avoid re-notifying the same tab within 30 min
+const _notifiedTabs = new Map();
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete') return;
+  const url = tab.url;
+  if (!url || !MEETING_PATTERNS.some(p => p.test(url))) return;
+
+  const state = await readState();
+  if (state.isRecording) return;
+
+  const last = _notifiedTabs.get(tabId);
+  if (last && Date.now() - last < 30 * 60 * 1000) return;
+  _notifiedTabs.set(tabId, Date.now());
+
+  chrome.notifications.create('meeting-detected', {
+    type:    'basic',
+    iconUrl: 'icons/icon128.png',
+    title:   'PechPech',
+    message: 'وارد کال شدی — ضبط رو شروع کنی؟',
+  });
+});
+
+chrome.notifications.onClicked.addListener(id => {
+  if (id !== 'meeting-detected') return;
+  chrome.notifications.clear(id);
+  chrome.action.openPopup().catch(() => {});
 });

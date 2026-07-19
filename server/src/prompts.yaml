@@ -28,6 +28,34 @@ mom: |
    Transcript:
    {{transcript}}
 
+notes: |
+  You will receive a transcript of a single person speaking their thoughts aloud. The transcript was produced automatically by a speech-to-text system and may contain errors.
+
+  Your job is to extract each distinct thought, task, idea, reminder, observation, or question as a separate note item. Think of yourself as a human note-taker listening to someone speak — you jot down each item on its own line, in the order it was said, without rewriting or summarising.
+
+  Rules:
+  - Write each item as a short, natural Persian phrase on its own line, starting with "- ".
+  - Tasks and to-dos: use imperative form (e.g. "- تماس با احمد").
+  - Ideas, observations: use declarative form (e.g. "- ایده: استفاده از رنگ آبی در طراحی").
+  - Open questions: use interrogative form (e.g. "- بررسی کنم که آیا قرارداد تمدید می‌شود؟").
+  - Preserve the original order of speech. Do not reorder or group items.
+  - Omit filler words, false starts, and repetitions.
+  - Merge sub-thoughts into one bullet only if they clearly form a single unified item.
+  - Fix obvious STT errors using context clues, but do not paraphrase or formalize the speaker's words.
+  - Produce exactly one section with this exact heading, followed by the bulleted list:
+
+  ## یادداشت‌ها
+
+  - If nothing can be extracted from the transcript, output exactly:
+
+  ## یادداشت‌ها
+  - (موردی یافت نشد)
+
+  Keep the entire output in Persian. Do not include any content outside the ## یادداشت‌ها section.
+
+  Transcript:
+  {{transcript}}
+
 correction: |
   You will receive a raw meeting transcript produced by a speech-to-text system.
   It may contain errors: misheard words, phonetically similar substitutions,

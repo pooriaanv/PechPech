@@ -81,7 +81,7 @@ class RecordingStore {
     fs.writeFileSync(path.join(this.audioDir, `${id}.${ext}`), audioBuffer);
     this._records[id] = {
       id, filename: `${id}.${ext}`, mimeType: mimeType || 'audio/webm',
-      status: 'saved', createdAt: Date.now(), title: null,
+      status: 'saved', createdAt: Date.now(), title: null, mode: null, notes: null,
       transcript: null, summary: null, decisions: null, action_items: null, error: null,
       corrected_transcript: null, correction_status: null, correction_error: null,
     };
@@ -258,10 +258,13 @@ app.post('/recordings/:id/process', (req, res) => {
     return res.json({ id: rec.id, status: rec.status, message: 'Already processing.' });
   }
 
+  const rawMode = req.body?.mode;
+  const mode    = rawMode === 'notes' ? 'notes' : 'mom';
+
   store.update(rec.id, { status: 'processing', error: null });
   res.json({ id: rec.id, status: 'processing' });
 
-  pipeline.run(rec.id, loadServerConfig());
+  pipeline.run(rec.id, loadServerConfig(), mode);
 });
 
 // ── POST /recordings/:id/correct ─────────────────────────────────

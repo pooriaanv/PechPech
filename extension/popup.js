@@ -43,6 +43,12 @@ const el = {
   recList:            $('recordings-list'),
   stepTrans:    $('step-transcribe'),
   stepSum:      $('step-summarize'),
+  heroLabel:        $('hero-label'),
+  momCard:          $('mom-card'),
+  notesCard:        $('notes-card'),
+  resultNotesList:  $('result-notes-list'),
+  resultNotesEmpty: $('result-notes-empty'),
+  recModeLabel:     $('rec-mode-label'),
 };
 
 // ── Runtime state ─────────────────────────────────────────────────
@@ -51,10 +57,11 @@ let elapsedTimer  = null;
 let elapsedStart  = null;
 let pollingTimer  = null;
 let currentMOM    = null;
+let currentMode   = 'mom'; // 'mom' | 'notes'
 
 // ── Session state helpers ─────────────────────────────────────────
 
-const SESSION_KEYS = ['popupState', 'recordingId', 'currentMOM', 'errorMsg'];
+const SESSION_KEYS = ['popupState', 'recordingId', 'currentMOM', 'errorMsg', 'currentMode'];
 
 function saveSession(patch) {
   return new Promise(r =>
@@ -70,6 +77,31 @@ function loadSession() {
 
 function clearSession() {
   return new Promise(r => chrome.storage.session.remove(SESSION_KEYS, r));
+}
+
+// ── Mode helpers ──────────────────────────────────────────────────
+
+function applyModeToggle(mode) {
+  document.querySelectorAll('.mode-toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+    btn.setAttribute('aria-pressed', btn.dataset.mode === mode);
+  });
+  el.heroLabel.textContent = mode === 'notes' ? 'شروع یادداشت صوتی' : 'شروع ضبط جلسه';
+}
+
+function renderNotesList(rawNotes, ulEl, emptyEl) {
+  const lines = (rawNotes || '')
+    .split('\n')
+    .map(l => l.replace(/^[\s\-•*\d\.]+/, '').trim())
+    .filter(Boolean);
+  if (!lines.length) {
+    ulEl.classList.add('hidden');
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+  ulEl.innerHTML = lines.map(l => `<li class="notes-list-item">${escapeHtml(l)}</li>`).join('');
+  ulEl.classList.remove('hidden');
+  emptyEl.classList.add('hidden');
 }
 
 // ── UI helpers ────────────────────────────────────────────────────
@@ -110,7 +142,7 @@ function setProcessingStep(status) {
     uploading:    'در حال آپلود صدا…',
     processing:   'در حال رونویسی…',
     transcribing: 'در حال رونویسی…',
-    summarizing:  'در حال تولید صورت‌جلسه…',
+    summarizing:  currentMode === 'notes' ? 'در حال استخراج یادداشت‌ها…' : 'در حال تولید صورت‌جلسه…',
   };
   el.procMsg.textContent = msgs[status] || 'در حال پردازش…';
 
@@ -132,9 +164,18 @@ function showError(msg) {
 }
 
 function displayResult(mom) {
-  el.summary.textContent   = mom.summary      || '—';
-  el.decisions.textContent = mom.decisions    || '—';
-  el.actions.textContent   = mom.action_items || '—';
+  const isNotes = mom.mode === 'notes';
+  el.momCard.classList.toggle('hidden', isNotes);
+  el.notesCard.classList.toggle('hidden', !isNotes);
+  el.transcriptSection.classList.toggle('hidden', isNotes);
+
+  if (isNotes) {
+    renderNotesList(mom.notes, el.resultNotesList, el.resultNotesEmpty);
+  } else {
+    el.summary.textContent   = mom.summary      || '—';
+    el.decisions.textContent = mom.decisions    || '—';
+    el.actions.textContent   = mom.action_items || '—';
+  }
 
   updateTranscriptSection(mom);
   showState('result');
@@ -186,6 +227,8 @@ function startPolling(recordingId) {
         const mom = {
           id:                   rec.id,
           title:                rec.title                 || null,
+          mode:                 rec.mode                  || 'mom',
+          notes:                rec.notes                 || '',
           summary:              rec.summary               || '',
           decisions:            rec.decisions             || '',
           action_items:         rec.action_items          || '',
@@ -464,11 +507,18 @@ function buildCard(r) {
       </div>`;
   }
 
+  const badgeHTML = r.status === 'done'
+    ? `<div class="rec-badge-stack">
+        <span class="badge badge-done">${badge}</span>
+        ${r.mode ? `<span class="badge rec-mode-badge rec-mode-badge--${r.mode}">${r.mode === 'mom' ? 'جلسه' : 'یادداشت'}</span>` : ''}
+       </div>`
+    : `<span class="badge badge-${r.status}">${badge}</span>`;
+
   return `
     <div class="rec-card" data-rec-id="${r.id}">
       <div class="rec-top">
         <div class="rec-meta">${buildMeta(r)}</div>
-        <span class="badge badge-${r.status}">${badge}</span>
+        ${badgeHTML}
       </div>
       ${playerHTML}
       ${actionsHTML}
@@ -497,6 +547,8 @@ function wireCardEvents(list, port, settings) {
       currentMOM = {
         id:                   r.id,
         title:                r.title                 || null,
+        mode:                 r.mode                  || 'mom',
+        notes:                r.notes                 || '',
         summary:              r.summary               || '',
         decisions:            r.decisions             || '',
         action_items:         r.action_items          || '',
@@ -510,7 +562,7 @@ function wireCardEvents(list, port, settings) {
 
   // Process
   el.recList.querySelectorAll('[data-process]').forEach(btn => {
-    btn.addEventListener('click', () => triggerProcess(btn.dataset.process, port, settings));
+    btn.addEventListener('click', () => triggerProcess(btn.dataset.process, port, settings, currentMode));
   });
 
   // Delete
@@ -531,14 +583,16 @@ function wireCardEvents(list, port, settings) {
   });
 }
 
-async function triggerProcess(id, port, settings) {
+async function triggerProcess(id, port, settings, mode = 'mom') {
   showState('processing');
   setProcessingStep('processing');
-  await saveSession({ popupState: 'processing', recordingId: id });
+  await saveSession({ popupState: 'processing', recordingId: id, currentMode: mode });
 
   try {
     const res = await fetch(`http://localhost:${port}/recordings/${id}/process`, {
-      method: 'POST',
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ mode }),
     });
 
     const data = await res.json().catch(() => ({}));
@@ -625,6 +679,7 @@ el.btnStart.addEventListener('click', async () => {
     }
   } catch (_) {}
 
+  el.recModeLabel.textContent = currentMode === 'notes' ? 'یادداشت' : 'جلسه';
   showState('recording');
   startTimer();
 
@@ -666,26 +721,39 @@ el.btnStop.addEventListener('click', () => {
 
 el.btnSave.addEventListener('click', () => {
   if (!currentMOM) return;
-  const now      = new Date();
-  const date     = now.toISOString().slice(0, 10);
-  const time     = now.toTimeString().slice(0, 5);
-  const heading  = currentMOM.title
-    ? `# ${currentMOM.title} — ${date} ${time}`
-    : `# صورت‌جلسه — ${date} ${time}`;
-  const md = [
-    heading, '',
-    '## خلاصه', currentMOM.summary || '—', '',
-    '## تصمیمات', currentMOM.decisions || '—', '',
-    '## اقدامات', currentMOM.action_items || '—', '',
-    ...(currentMOM.corrected_transcript ? [
-      '---', '## متن اصلاح‌شده', currentMOM.corrected_transcript, '',
-    ] : []),
-    '---', '*تولید شده توسط PechPech*',
-  ].join('\n');
+  const now  = new Date();
+  const date = now.toISOString().slice(0, 10);
+  const time = now.toTimeString().slice(0, 5);
+  const sanitize = t => t.replace(/[<>:"/\\|?*]/g, '').trim().replace(/\s+/g, '_').slice(0, 40);
 
-  const safeTitle  = currentMOM.title
-    ? currentMOM.title.replace(/[<>:"/\\|?*]/g, '').trim().replace(/\s+/g, '_').slice(0, 40)
-    : 'MOM';
+  let md, safeTitle;
+  if (currentMOM.mode === 'notes') {
+    const heading = currentMOM.title
+      ? `# ${currentMOM.title}\n*${date} ${time}*`
+      : `# یادداشت\n*${date} ${time}*`;
+    md = [
+      heading, '',
+      '## یادداشت‌ها', currentMOM.notes || '—', '',
+      '---', '*تولید شده توسط PechPech*',
+    ].join('\n');
+    safeTitle = currentMOM.title ? sanitize(currentMOM.title) : 'Notes';
+  } else {
+    const heading = currentMOM.title
+      ? `# ${currentMOM.title} — ${date} ${time}`
+      : `# صورت‌جلسه — ${date} ${time}`;
+    md = [
+      heading, '',
+      '## خلاصه', currentMOM.summary || '—', '',
+      '## تصمیمات', currentMOM.decisions || '—', '',
+      '## اقدامات', currentMOM.action_items || '—', '',
+      ...(currentMOM.corrected_transcript ? [
+        '---', '## متن اصلاح‌شده', currentMOM.corrected_transcript, '',
+      ] : []),
+      '---', '*تولید شده توسط PechPech*',
+    ].join('\n');
+    safeTitle = currentMOM.title ? sanitize(currentMOM.title) : 'MOM';
+  }
+
   const a = Object.assign(document.createElement('a'), {
     href:     URL.createObjectURL(new Blob([md], { type: 'text/markdown;charset=utf-8' })),
     download: `${safeTitle}_${date}_${time.replace(':', '-')}.md`,
@@ -718,6 +786,21 @@ el.btnTranscript.addEventListener('click', () => {
 // ── Init ──────────────────────────────────────────────────────────
 
 async function init() {
+  // Load persisted mode preference
+  const { defaultMode } = await new Promise(r => chrome.storage.local.get(['defaultMode'], r));
+  const saved = await loadSession();
+  currentMode = saved.currentMode || defaultMode || 'mom';
+  applyModeToggle(currentMode);
+
+  // Wire mode toggle
+  document.querySelectorAll('.mode-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentMode = btn.dataset.mode;
+      applyModeToggle(currentMode);
+      chrome.storage.local.set({ defaultMode: currentMode });
+    });
+  });
+
   // Check active recording in background first
   const bg = await new Promise(r =>
     chrome.runtime.sendMessage({ type: 'GET_STATE' }, res =>
@@ -730,9 +813,6 @@ async function init() {
     startTimer(bg.startedAt);
     return;
   }
-
-  // Restore persisted popup state
-  const saved = await loadSession();
 
   if (saved.popupState === 'processing' && saved.recordingId) {
     showState('processing');

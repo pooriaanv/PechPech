@@ -226,6 +226,58 @@
       background: var(--color-border);
       margin: 16px 0;
     }
+
+    /* Meeting domain chips */
+    .domain-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .domain-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      font-family: monospace;
+      padding: 3px 10px;
+      border-radius: 99px;
+      direction: ltr;
+    }
+    .domain-chip--default {
+      background: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+    }
+    .domain-chip--custom {
+      background: #f0fdf4;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+    .domain-chip-remove {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: inherit;
+      opacity: .6;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 0 0 2px;
+    }
+    .domain-chip-remove:hover { opacity: 1; }
+
+    .domain-input-row {
+      display: flex;
+      gap: 8px;
+    }
+    .domain-input-row input {
+      flex: 1;
+    }
+    .domain-input-row .btn {
+      padding: 9px 16px;
+      flex-shrink: 0;
+      font-size: 13px;
+    }
   </style>
 </head>
 <body>
@@ -325,6 +377,35 @@
       <div class="info-box">
         برای اجرای Local Helper:<br/>
         <code>cd local-helper && npm install && node server.js</code>
+      </div>
+    </div>
+
+    <!-- Meeting Detection -->
+    <div class="card">
+      <div class="card-title">تشخیص ورود به کال</div>
+
+      <div class="field">
+        <label>دامنه‌های پیش‌فرض</label>
+        <div class="domain-chips">
+          <span class="domain-chip domain-chip--default">meet.google.com</span>
+          <span class="domain-chip domain-chip--default">zoom.us</span>
+          <span class="domain-chip domain-chip--default">teams.microsoft.com</span>
+          <span class="domain-chip domain-chip--default">teams.live.com</span>
+          <span class="domain-chip domain-chip--default">web.skype.com</span>
+        </div>
+        <p class="field-hint">همیشه فعال هستند و قابل حذف نیستند.</p>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="field">
+        <label for="domain-input">افزودن دامنه سفارشی</label>
+        <div class="domain-input-row">
+          <input type="text" id="domain-input" placeholder="app.mymeeting.com" dir="ltr" />
+          <button type="button" id="btn-add-domain" class="btn btn-outline">افزودن</button>
+        </div>
+        <div class="domain-chips" id="custom-domains-list"></div>
+        <p class="field-hint">فقط نام دامنه بدون https:// — مثلاً <code>whereby.com</code></p>
       </div>
     </div>
 

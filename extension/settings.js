@@ -21,6 +21,45 @@ const btnSave       = document.getElementById('btn-save');
 const btnReset      = document.getElementById('btn-reset');
 const toastSaved    = document.getElementById('toast-saved');
 const serverError   = document.getElementById('server-error');
+const domainInput   = document.getElementById('domain-input');
+const btnAddDomain  = document.getElementById('btn-add-domain');
+const customList    = document.getElementById('custom-domains-list');
+
+// ── Custom Meeting Domains ────────────────────────────────────────
+
+let customDomains = [];
+
+function normalizeDomain(raw) {
+  return raw.trim().toLowerCase()
+    .replace(/^https?:\/\//i, '')
+    .replace(/\/.*$/, '');
+}
+
+function renderCustomDomains() {
+  customList.innerHTML = customDomains.map((d, i) => `
+    <span class="domain-chip domain-chip--custom">
+      ${d}
+      <button class="domain-chip-remove" data-idx="${i}" title="حذف">×</button>
+    </span>`).join('');
+  customList.querySelectorAll('.domain-chip-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      customDomains.splice(parseInt(btn.dataset.idx, 10), 1);
+      renderCustomDomains();
+    });
+  });
+}
+
+function addDomain() {
+  const d = normalizeDomain(domainInput.value);
+  if (!d || customDomains.includes(d)) { domainInput.focus(); return; }
+  customDomains.push(d);
+  domainInput.value = '';
+  renderCustomDomains();
+  domainInput.focus();
+}
+
+btnAddDomain.addEventListener('click', addDomain);
+domainInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addDomain(); } });
 
 // ── Toggle conditional LLM fields ────────────────────────────────
 function updateLLMFields() {
@@ -54,6 +93,12 @@ function hideServerError() {
 async function loadSettings() {
   const port = await getStoredPort();
   helperPortEl.value = port;
+
+  const { customMeetingDomains } = await new Promise(r =>
+    chrome.storage.local.get(['customMeetingDomains'], r)
+  );
+  customDomains = customMeetingDomains || [];
+  renderCustomDomains();
 
   try {
     const res = await fetch(`${serverBase(port)}/config`, {
@@ -89,8 +134,10 @@ async function saveSettings() {
     return;
   }
 
-  // Port goes to chrome.storage — it's the bootstrap value
-  await new Promise(r => chrome.storage.local.set({ helperPort: port }, r));
+  await new Promise(r => chrome.storage.local.set({
+    helperPort: port,
+    customMeetingDomains: customDomains,
+  }, r));
 
   const cfg = {
     sttUrl:      sttUrlEl.value.trim(),

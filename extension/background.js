@@ -243,20 +243,40 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 
 // ── Meeting URL Detection ─────────────────────────────────────────
 
-const MEETING_PATTERNS = [
+const DEFAULT_MEETING_PATTERNS = [
   /^https:\/\/meet\.google\.com\/[a-z]+-[a-z]+-[a-z]+/,  // Google Meet room
   /^https:\/\/[\w.-]+\.zoom\.us\/j\//,                     // Zoom web meeting
   /^https:\/\/teams\.microsoft\.com\/l\/meetup-join\//,    // Teams meeting
   /^https:\/\/teams\.live\.com\/meet\//,                   // Teams personal
+  /^https:\/\/web\.skype\.com\//,                          // Skype web
 ];
+
+// Custom domains from chrome.storage.local — kept in sync via onChanged
+let _customMeetingDomains = [];
+chrome.storage.local.get(['customMeetingDomains'], ({ customMeetingDomains }) => {
+  _customMeetingDomains = customMeetingDomains || [];
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.customMeetingDomains) {
+    _customMeetingDomains = changes.customMeetingDomains.newValue || [];
+  }
+});
+
+function isMeetingUrl(url) {
+  if (!url) return false;
+  if (DEFAULT_MEETING_PATTERNS.some(p => p.test(url))) return true;
+  try {
+    const hostname = new URL(url).hostname;
+    return _customMeetingDomains.some(d => hostname === d || hostname.endsWith(`.${d}`));
+  } catch { return false; }
+}
 
 // In-memory cooldown: avoid re-notifying the same tab within 30 min
 const _notifiedTabs = new Map();
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status !== 'complete') return;
-  const url = tab.url;
-  if (!url || !MEETING_PATTERNS.some(p => p.test(url))) return;
+  if (!isMeetingUrl(tab.url)) return;
 
   const state = await readState();
   if (state.isRecording) return;

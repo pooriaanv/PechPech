@@ -79,6 +79,21 @@ function clearSession() {
   return new Promise(r => chrome.storage.session.remove(SESSION_KEYS, r));
 }
 
+// ── Mic Permission ────────────────────────────────────────────────
+
+async function checkMicPermission() {
+  try {
+    const status = await navigator.permissions.query({ name: 'microphone' });
+    return status.state; // 'granted' | 'denied' | 'prompt'
+  } catch {
+    return 'unsupported';
+  }
+}
+
+function openMicPermissionTab() {
+  chrome.tabs.create({ url: chrome.runtime.getURL('permission.html') });
+}
+
 // ── Mode helpers ──────────────────────────────────────────────────
 
 function applyModeToggle(mode) {
@@ -656,14 +671,35 @@ function pollCorrection(id, port) {
 // ── Start ─────────────────────────────────────────────────────────
 
 el.btnStart.addEventListener('click', async () => {
-  // Mic permission from visible popup context
-  try {
-    const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-    s.getTracks().forEach(t => t.stop());
-  } catch (err) {
-    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-      showError('دسترسی به میکروفون رد شد.\nلطفاً در تنظیمات Chrome دسترسی میکروفون را فعال کنید.');
-      return;
+  // Mic permission: never request the initial grant from the popup itself —
+  // the popup auto-closes on blur, which the native permission bubble
+  // triggers, and Chrome then remembers the interrupted request as "denied"
+  // with no way to re-prompt except via chrome://settings. Instead, check
+  // state here and hand off to a stable full-tab page when not yet granted.
+  const micState = await checkMicPermission();
+
+  if (micState === 'denied') {
+    openMicPermissionTab();
+    showError('دسترسی میکروفون قبلاً رد شده است.\nیک تب جدید باز شد — طبق راهنما دسترسی را فعال کنید، سپس به اینجا برگردید و دوباره «شروع ضبط» را بزنید.');
+    return;
+  }
+
+  if (micState === 'prompt') {
+    openMicPermissionTab();
+    showError('یک تب جدید برای دسترسی میکروفون باز شد.\nپس از تایید دسترسی، به این پنجره برگردید و دوباره «شروع ضبط» را بزنید.');
+    return;
+  }
+
+  if (micState === 'unsupported') {
+    // Fallback for browsers without permissions.query('microphone') support
+    try {
+      const s = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      s.getTracks().forEach(t => t.stop());
+    } catch (err) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        showError('دسترسی به میکروفون رد شد.\nلطفاً در تنظیمات Chrome دسترسی میکروفون را فعال کنید.');
+        return;
+      }
     }
   }
 

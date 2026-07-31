@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <title>دسترسی میکروفون — PechPech</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --v50:  #f5f3ff; --v100: #ede9fe; --v200: #ddd6fe; --v600: #7c3aed; --v700: #6d28d9;
+      --g50:  #f9fafb; --g100: #f3f4f6; --g200: #e5e7eb; --g400: #9ca3af; --g500: #6b7280;
+      --g700: #374151; --g900: #111827;
+      --green50: #f0fdf4; --green200: #bbf7d0; --green600: #16a34a;
+      --red50:  #fef2f2; --red200: #fecaca; --red600: #dc2626;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Vazirmatn', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--g50);
+      color: var(--g900);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 8px 40px rgba(0,0,0,.08);
+      padding: 32px 28px;
+      text-align: center;
+    }
+    .icon { font-size: 48px; margin-bottom: 12px; }
+    h1 { font-size: 19px; font-weight: 800; margin-bottom: 8px; }
+    p.sub { font-size: 14px; color: var(--g500); line-height: 1.7; margin-bottom: 24px; }
+    .status {
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: none;
+      line-height: 1.6;
+    }
+    .status.show    { display: block; }
+    .status.granted { background: var(--green50); border: 1px solid var(--green200); color: var(--green600); }
+    .status.denied  { background: var(--red50);   border: 1px solid var(--red200);   color: var(--red600); }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      border-radius: 11px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 12px 24px;
+      cursor: pointer;
+      width: 100%;
+      justify-content: center;
+      transition: filter .15s, transform .1s;
+    }
+    .btn:active { transform: scale(.98); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--v600), var(--v700));
+      color: #fff;
+      box-shadow: 0 2px 12px rgba(124,58,237,.3);
+    }
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-outline { background: var(--g100); color: var(--g700); margin-top: 10px; }
+    .btn-outline:hover { background: var(--g200); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🎙️</div>
+    <h1>دسترسی به میکروفون</h1>
+    <p class="sub">
+      برای ضبط صدای شما در کنار صدای جلسه، PechPech نیاز به دسترسی میکروفون دارد.
+      این دسترسی فقط مخصوص همین افزونه است و پس از تایید، دیگر لازم نیست تکرار شود.
+    </p>
+
+    <div class="status" id="status"></div>
+
+    <button class="btn btn-primary" id="btn-grant">اعطای دسترسی میکروفون</button>
+    <button class="btn btn-outline hidden" id="btn-open-settings">باز کردن تنظیمات Chrome</button>
+  </div>
+  <script src="permission.js"></script>
+</body>
+</html>

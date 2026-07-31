@@ -283,7 +283,7 @@ const _badgedTabs = new Set();
 
 function setMeetingBadge(tabId) {
   chrome.action.setBadgeText({ text: '●', tabId });
-  chrome.action.setBadgeBackgroundColor({ color: '#7c3aed', tabId });
+  chrome.action.setBadgeBackgroundColor({ color: '#dc2626', tabId });
   chrome.action.setTitle({ tabId, title: 'جلسه شناسایی شد — برای ضبط روی آیکون کلیک کنید' });
   _badgedTabs.add(tabId);
 }

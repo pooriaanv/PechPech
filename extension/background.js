@@ -275,8 +275,12 @@ function isMeetingUrl(url) {
 const _notifiedTabs = new Map();
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (changeInfo.status !== 'complete') return;
-  if (!isMeetingUrl(tab.url)) return;
+  // Full navigations fire with status:'complete' (tab.url is final).
+  // SPA route changes (e.g. Meet's "New meeting" while already on the
+  // site) use history.pushState — Chrome reports only changeInfo.url,
+  // with no status field at all. Handle both.
+  const url = changeInfo.url || (changeInfo.status === 'complete' ? tab.url : null);
+  if (!isMeetingUrl(url)) return;
 
   const state = await readState();
   if (state.isRecording) return;
@@ -284,6 +288,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const last = _notifiedTabs.get(tabId);
   if (last && Date.now() - last < 30 * 60 * 1000) return;
   _notifiedTabs.set(tabId, Date.now());
+
+  console.log(`[background] Meeting URL detected on tab ${tabId}: ${url}`);
 
   chrome.notifications.create('meeting-detected', {
     type:    'basic',

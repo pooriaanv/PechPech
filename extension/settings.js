@@ -62,10 +62,35 @@ btnAddDomain.addEventListener('click', addDomain);
 domainInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addDomain(); } });
 
 // ── Toggle conditional LLM fields ────────────────────────────────
+
+const API_URL_FIELD  = document.getElementById('api-url-field');
+const API_MODEL_HINT = document.getElementById('llm-api-model-hint');
+const API_KEY_HINT   = document.getElementById('llm-api-key-hint');
+
+// Presets: only need a model + API key from the user — base URL is fixed.
+const API_PRESETS = {
+  openai: {
+    modelPlaceholder: 'gpt-4o',
+    keyHint:          'کلید API از platform.openai.com',
+  },
+  'gemini-api': {
+    modelPlaceholder: 'gemini-2.0-flash',
+    keyHint:          'کلید API از aistudio.google.com',
+  },
+};
+
 function updateLLMFields() {
   const v = llmCliEl.value;
   customCmdFld.classList.toggle('visible', v === 'custom');
-  apiFlds.classList.toggle('visible', v === 'api');
+
+  const isApiBased = v === 'api' || v in API_PRESETS;
+  apiFlds.classList.toggle('visible', isApiBased);
+  API_URL_FIELD.classList.toggle('hidden', v !== 'api');
+
+  const preset = API_PRESETS[v];
+  llmApiModelEl.placeholder = preset?.modelPlaceholder || 'gpt-4o';
+  API_MODEL_HINT.innerHTML  = `پیش‌فرض: <code>${preset?.modelPlaceholder || 'gpt-4o'}</code>`;
+  API_KEY_HINT.textContent  = preset?.keyHint || '';
 }
 llmCliEl.addEventListener('change', updateLLMFields);
 

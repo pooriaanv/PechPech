@@ -169,12 +169,95 @@ function createAPIAdapter({ llmApiUrl, llmApiKey, llmApiModel }) {
   };
 }
 
+// ── OpenAI Adapter ────────────────────────────────────────────────
+// Preset for api.openai.com — same wire format as the generic API
+// adapter above, with the base URL fixed so users only provide a
+// model and an API key in settings.
+
+function createOpenAIAdapter({ llmApiKey, llmApiModel }) {
+  if (!llmApiKey) {
+    throw new Error('OpenAI selected but no API key is set. Add it in the extension settings.');
+  }
+  return createAPIAdapter({
+    llmApiUrl:   'https://api.openai.com/v1',
+    llmApiKey,
+    llmApiModel: llmApiModel || 'gpt-4o',
+  });
+}
+
+// ── Gemini Adapter ────────────────────────────────────────────────
+// Calls Google's Generative Language API (generateContent), which uses
+// a different request/response shape than OpenAI's chat/completions.
+
+function createGeminiAdapter({ llmApiKey, llmApiModel }) {
+  const apiKey = llmApiKey || '';
+  const model  = llmApiModel || 'gemini-2.0-flash';
+
+  if (!apiKey) {
+    throw new Error('Gemini selected but no API key is set. Add it in the extension settings.');
+  }
+
+  return {
+    async invoke(promptText) {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+      console.log(`[llm] Gemini: ${model} (prompt ${promptText.length} chars)`);
+
+      let response;
+      try {
+        response = await globalThis.fetch(endpoint, {
+          method:  'POST',
+          headers: {
+            'Content-Type':   'application/json',
+            'x-goog-api-key': apiKey,
+          },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: promptText }] }],
+          }),
+          signal: AbortSignal.timeout(900_000),
+        });
+      } catch (err) {
+        if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+          throw new Error(`Gemini API timed out after 15 minutes. Model: ${model}`);
+        }
+        throw new Error(`Gemini API unreachable: ${err.message}`);
+      }
+
+      if (!response.ok) {
+        const detail = await response.text().catch(() => '');
+        throw new Error(`Gemini API returned HTTP ${response.status}: ${detail || response.statusText}`);
+      }
+
+      let json;
+      try { json = await response.json(); }
+      catch { throw new Error('Gemini API returned invalid JSON.'); }
+
+      const candidate = json.candidates?.[0];
+      if (!candidate) {
+        const blockReason = json.promptFeedback?.blockReason;
+        throw new Error(
+          blockReason
+            ? `Gemini blocked the request (${blockReason}).`
+            : `Gemini API response missing candidates. Got: ${JSON.stringify(json).slice(0, 200)}`
+        );
+      }
+
+      const text = (candidate.content?.parts || []).map(p => p.text || '').join('');
+      if (!text) {
+        throw new Error(`Gemini API returned an empty response. Finish reason: ${candidate.finishReason || 'unknown'}`);
+      }
+
+      return text;
+    },
+  };
+}
+
 // ── Factory ───────────────────────────────────────────────────────
 // Selects the right adapter based on config.llmCli.
 // Called per-request — provider type comes from extension settings each time.
 
 function createProvider(config) {
   const cli = config.llmCli || 'claude';
+
   if (cli === 'api') {
     return createAPIAdapter({
       llmApiUrl:   config.llmApiUrl,
@@ -182,6 +265,21 @@ function createProvider(config) {
       llmApiModel: config.llmApiModel,
     });
   }
+
+  if (cli === 'openai') {
+    return createOpenAIAdapter({
+      llmApiKey:   config.llmApiKey,
+      llmApiModel: config.llmApiModel,
+    });
+  }
+
+  if (cli === 'gemini-api') {
+    return createGeminiAdapter({
+      llmApiKey:   config.llmApiKey,
+      llmApiModel: config.llmApiModel,
+    });
+  }
+
   return createCLIAdapter({
     llmCli:     cli,
     llmCommand: config.llmCommand,

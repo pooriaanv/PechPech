@@ -6,6 +6,7 @@
 // read and written via GET /config and POST /config.
 
 // ── DOM Refs ──────────────────────────────────────────────────────
+const sttProviderEl = document.getElementById('stt-provider');
 const sttUrlEl      = document.getElementById('stt-url');
 const sttKeyEl      = document.getElementById('stt-key');
 const sttModelEl    = document.getElementById('stt-model');
@@ -94,6 +95,48 @@ function updateLLMFields() {
 }
 llmCliEl.addEventListener('change', updateLLMFields);
 
+// ── Toggle conditional STT fields ─────────────────────────────────
+
+const STT_URL_FIELD       = document.getElementById('stt-url-field');
+const STT_MODEL_HINT      = document.getElementById('stt-model-hint');
+const STT_KEY_HINT        = document.getElementById('stt-key-hint');
+const STT_KEY_OPTIONAL_LBL = document.getElementById('stt-key-optional-label');
+
+const STT_DEFAULT_HINT = {
+  modelPlaceholder: 'whisper-1',
+  modelHint:  'پیش‌فرض: <code>whisper-1</code> (OpenAI) &nbsp;|&nbsp; GapGPT: <code>whisper-large-v3</code>',
+  keyHint:    'برای سرور محلی خالی بگذارید. برای OpenAI / Groq وارد کنید.',
+  keyOptional: true,
+};
+
+// Presets: only need a model + API key from the user — base URL is fixed.
+const STT_PRESETS = {
+  openai: {
+    modelPlaceholder: 'whisper-1',
+    modelHint:  'پیش‌فرض: <code>whisper-1</code>',
+    keyHint:    'کلید API از platform.openai.com — الزامی است.',
+    keyOptional: false,
+  },
+  gemini: {
+    modelPlaceholder: 'gemini-2.0-flash',
+    modelHint:  'پیش‌فرض: <code>gemini-2.0-flash</code>',
+    keyHint:    'کلید API از aistudio.google.com — الزامی است.',
+    keyOptional: false,
+  },
+};
+
+function updateSTTFields() {
+  const v = sttProviderEl.value;
+  STT_URL_FIELD.classList.toggle('hidden', v !== 'custom');
+
+  const preset = STT_PRESETS[v] || STT_DEFAULT_HINT;
+  sttModelEl.placeholder = preset.modelPlaceholder;
+  STT_MODEL_HINT.innerHTML = preset.modelHint;
+  STT_KEY_HINT.textContent = preset.keyHint;
+  STT_KEY_OPTIONAL_LBL.classList.toggle('hidden', !preset.keyOptional);
+}
+sttProviderEl.addEventListener('change', updateSTTFields);
+
 // ── Port helpers ──────────────────────────────────────────────────
 function getStoredPort() {
   return new Promise(r => chrome.storage.local.get(['helperPort'], items => {
@@ -132,10 +175,11 @@ async function loadSettings() {
     if (!res.ok) throw new Error(`Server error ${res.status}`);
     const cfg = await res.json();
 
+    sttProviderEl.value = cfg.sttProvider ?? 'custom';
     sttUrlEl.value      = cfg.sttUrl      ?? 'http://localhost:8080/v1';
     sttKeyEl.value      = cfg.sttKey      ?? '';
     sttModelEl.value    = cfg.sttModel    ?? 'whisper-1';
-    llmCliEl.value      = cfg.llmCli      ?? 'claude';
+    llmCliEl.value      = cfg.llmCli      ?? 'openai';
     llmCommandEl.value  = cfg.llmCommand  ?? '';
     llmApiUrlEl.value   = cfg.llmApiUrl   ?? '';
     llmApiKeyEl.value   = cfg.llmApiKey   ?? '';
@@ -146,6 +190,7 @@ async function loadSettings() {
     showServerError(`Cannot reach PechPech server at localhost:${port}. Start it first, then reload this page.`);
   }
 
+  updateSTTFields();
   updateLLMFields();
 }
 
@@ -165,6 +210,7 @@ async function saveSettings() {
   }, r));
 
   const cfg = {
+    sttProvider: sttProviderEl.value,
     sttUrl:      sttUrlEl.value.trim(),
     sttKey:      sttKeyEl.value.trim(),
     sttModel:    sttModelEl.value.trim() || 'whisper-1',
@@ -200,8 +246,9 @@ async function resetSettings() {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({
+        sttProvider: 'custom',
         sttUrl: 'http://localhost:8080/v1', sttKey: '', sttModel: 'whisper-1',
-        llmCli: 'claude', llmCommand: '', llmApiUrl: '', llmApiKey: '', llmApiModel: '',
+        llmCli: 'openai', llmCommand: '', llmApiUrl: '', llmApiKey: '', llmApiModel: '',
       }),
       signal: AbortSignal.timeout(5000),
     });

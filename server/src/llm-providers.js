@@ -4,11 +4,10 @@ const { spawn } = require('child_process');
 
 // ── CLI Adapter ───────────────────────────────────────────────────
 // Invokes a local LLM CLI tool via child_process.spawn.
-// Claude pipes the prompt via stdin to avoid OS arg-length limits.
-// All other CLIs receive the prompt as the first argument.
+// All CLIs receive the prompt as the first argument.
 
 function createCLIAdapter({ llmCli, llmCommand }) {
-  const cli = llmCli || 'claude';
+  const cli = llmCli || 'custom';
 
   return {
     invoke(promptText) {
@@ -16,12 +15,6 @@ function createCLIAdapter({ llmCli, llmCommand }) {
         let cmd, args, useStdin;
 
         switch (cli) {
-          case 'claude':
-            cmd      = 'claude';
-            args     = ['-p'];
-            useStdin = true;
-            break;
-
           case 'codex':
             cmd      = 'codex';
             args     = [promptText];
@@ -48,7 +41,7 @@ function createCLIAdapter({ llmCli, llmCommand }) {
           }
 
           default:
-            reject(new Error(`Unknown LLM CLI: "${cli}". Valid values: claude, custom.`));
+            reject(new Error(`Unknown LLM CLI: "${cli}". Valid values: codex, gemini, custom.`));
             return;
         }
 
@@ -76,10 +69,7 @@ function createCLIAdapter({ llmCli, llmCommand }) {
         proc.on('error', err => {
           clearTimeout(timeout);
           if (err.code === 'ENOENT') {
-            reject(new Error(
-              `CLI not found: "${cmd}". Is it installed and on PATH?\n` +
-              `  Claude Code: npm install -g @anthropic-ai/claude-code && claude login`
-            ));
+            reject(new Error(`CLI not found: "${cmd}". Is it installed and on PATH?`));
           } else {
             reject(new Error(`CLI spawn error: ${err.message}`));
           }
@@ -256,7 +246,7 @@ function createGeminiAdapter({ llmApiKey, llmApiModel }) {
 // Called per-request — provider type comes from extension settings each time.
 
 function createProvider(config) {
-  const cli = config.llmCli || 'claude';
+  const cli = config.llmCli || 'openai';
 
   if (cli === 'api') {
     return createAPIAdapter({

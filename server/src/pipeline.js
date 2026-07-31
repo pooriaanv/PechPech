@@ -7,6 +7,8 @@ const crypto = require('crypto');
 const { spawn } = require('child_process');
 const yaml   = require('js-yaml');
 
+const { createSTTProvider } = require('./stt-providers');
+
 // ── Prompt Templates ──────────────────────────────────────────────
 
 const PROMPTS = yaml.load(fs.readFileSync(path.join(__dirname, 'prompts.yaml'), 'utf8'));
@@ -126,62 +128,6 @@ function cleanAudio(audioBuffer, mimeType) {
   });
 }
 
-// ── STT: Whisper-compatible Call ──────────────────────────────────
-
-async function transcribeAudio({ audioBuffer, audioMimeType, sttUrl, sttKey, sttModel }) {
-  const baseUrl  = (sttUrl || 'http://localhost:8080/v1').replace(/\/$/, '');
-  const endpoint = `${baseUrl}/audio/transcriptions`;
-  const apiKey   = sttKey   || '';
-  const model    = sttModel || 'whisper-1';
-
-  console.log(`[stt] Sending audio to ${endpoint} (${audioBuffer.length} bytes), model="${model}"`);
-
-  const mime     = audioMimeType || 'audio/webm';
-  const ext      = mime.includes('ogg') ? 'ogg' : mime.includes('wav') ? 'wav' : 'webm';
-  const blob     = new Blob([audioBuffer], { type: mime });
-  const form     = new globalThis.FormData();
-  form.append('model',           model);
-  form.append('language',        'fa');
-  form.append('response_format', 'json');
-  form.append('file',            blob, `recording.${ext}`);
-
-  const headers = {};
-  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-
-  let response;
-  try {
-    response = await globalThis.fetch(endpoint, {
-      method:  'POST',
-      headers,
-      body:    form,
-      signal:  AbortSignal.timeout(120_000),
-    });
-  } catch (err) {
-    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
-      throw new Error('STT endpoint timed out (>2 min). Is the Whisper server running?');
-    }
-    throw new Error(`STT endpoint unreachable: ${err.message}. Is the server at ${baseUrl} running?`);
-  }
-
-  if (!response.ok) {
-    let detail = '';
-    try { detail = await response.text(); } catch (_) {}
-    throw new Error(`STT server returned HTTP ${response.status}: ${detail || response.statusText}`);
-  }
-
-  let json;
-  try { json = await response.json(); }
-  catch { throw new Error('STT server returned invalid JSON response.'); }
-
-  if (typeof json.text !== 'string') {
-    throw new Error(`STT response missing "text" field. Got: ${JSON.stringify(json).slice(0, 200)}`);
-  }
-
-  const transcript = json.text.trim();
-  console.log(`[stt] Transcript (${transcript.length} chars): ${transcript.slice(0, 120)}…`);
-  return transcript;
-}
-
 // ── Notes Output Parser ───────────────────────────────────────────
 
 function parseNotesOutput(text) {
@@ -229,12 +175,10 @@ function createPipeline({ store, createProvider }) {
             store.saveCleanedAudio(id, cleanedBuffer, cleanedMimeType);
           }
 
-          transcript = await transcribeAudio({
+          const sttProvider = createSTTProvider(config);
+          transcript = await sttProvider.transcribe({
             audioBuffer:   cleanedBuffer,
             audioMimeType: cleanedMimeType,
-            sttUrl:        config.sttUrl,
-            sttKey:        config.sttKey,
-            sttModel:      config.sttModel,
           });
           store.update(id, { transcript, status: 'summarizing' });
         }

@@ -114,13 +114,13 @@ esac
 
 echo -e "  ${BOLD}How would you like to run PechPech?${NC}"
 echo ""
-echo -e "  ${BOLD}  1  Without Docker${NC}  ${GREEN}← recommended for most users${NC}"
-echo -e "  ${DIM}     Installs everything directly on your machine.${NC}"
-echo -e "  ${DIM}     Node.js + ffmpeg required. Works great on macOS and Linux.${NC}"
+echo -e "  ${BOLD}  1  With Docker${NC}  ${GREEN}← recommended${NC}"
+echo -e "  ${DIM}     Everything runs in an isolated container — clean, portable, easy to reset.${NC}"
+echo -e "  ${DIM}     Works the same on macOS, Linux, and Windows (via Docker Desktop).${NC}"
 echo ""
-echo -e "  ${BOLD}  2  With Docker${NC}"
-echo -e "  ${DIM}     Everything runs in a container. Clean and portable.${NC}"
-echo -e "  ${DIM}     Great for Windows (via Docker Desktop), servers, and teams.${NC}"
+echo -e "  ${BOLD}  2  Without Docker${NC}"
+echo -e "  ${DIM}     Installs everything directly on your machine.${NC}"
+echo -e "  ${DIM}     Node.js + ffmpeg required.${NC}"
 echo ""
 
 MODE=""
@@ -132,10 +132,276 @@ done
 
 
 # ═════════════════════════════════════════════════════════════════
-#  WITHOUT DOCKER
+#  WITH DOCKER
 # ═════════════════════════════════════════════════════════════════
 
 if [[ "$MODE" == "1" ]]; then
+
+  # ── Docker check ───────────────────────────────────────────────
+  step "Checking Docker"
+
+  if ! command -v docker &>/dev/null; then
+    echo -e "  ${RED}✗${NC}  Docker not found."
+    info "Install Docker Desktop from https://docker.com"
+    die "Docker is required for this mode."
+  fi
+  if ! docker info &>/dev/null 2>&1; then
+    echo -e "  ${RED}✗${NC}  Docker daemon is not running."
+    info "Start Docker Desktop and try again."
+    die "Docker daemon not running."
+  fi
+  DOCKER_VER=$(docker --version | awk '{print $3}' | tr -d ',')
+  ok "Docker ${DOCKER_VER}"
+
+  # Check docker compose — use an array so "docker compose" is always two words,
+  # not one (IFS=$'\n\t' removes space from word-splitting on plain $VAR).
+  if docker compose version &>/dev/null 2>&1; then
+    COMPOSE_CMD=("docker" "compose")
+  elif command -v docker-compose &>/dev/null; then
+    warn "Using legacy docker-compose. Consider upgrading to Docker Desktop."
+    COMPOSE_CMD=("docker-compose")
+  else
+    die "Docker Compose not found. Install Docker Desktop (it includes Compose)."
+  fi
+  ok "Docker Compose: ${COMPOSE_CMD[*]}"
+
+  # ── LLM selection ─────────────────────────────────────────────
+  step "LLM selection"
+
+  echo ""
+  echo -e "  ${BOLD}Which LLM should power meeting minutes?${NC}"
+  echo ""
+  echo -e "  ${BOLD}  1  OpenAI (ChatGPT)${NC}"
+  echo -e "  ${DIM}     Just needs an API key from platform.openai.com${NC}"
+  echo ""
+  echo -e "  ${BOLD}  2  Google Gemini${NC}"
+  echo -e "  ${DIM}     Just needs an API key from aistudio.google.com${NC}"
+  echo ""
+  echo -e "  ${BOLD}  3  Custom API${NC}   ${DIM}(OpenAI-compatible endpoint)${NC}"
+  echo -e "  ${DIM}     Connect to any /chat/completions API — DeepSeek, Ollama, etc.${NC}"
+  echo ""
+  echo -e "  ${BOLD}  4  Custom CLI${NC}   ${DIM}(any local CLI tool)${NC}"
+  echo -e "  ${DIM}     You manage installation inside the container yourself.${NC}"
+  echo ""
+
+  LLM_NUM=""
+  while [[ ! "$LLM_NUM" =~ ^[1-4]$ ]]; do
+    echo -ne "  ${MAGENTA}?${NC}  ${BOLD}Choice${NC}  ${DIM}[1]${NC}:  "
+    read -r LLM_NUM
+    LLM_NUM="${LLM_NUM:-1}"
+  done
+
+  D_LLM_CLI=""
+  D_LLM_ARG="none"
+  D_LLM_CMD=""
+  D_LLM_API_URL=""
+  D_LLM_API_KEY=""
+  D_LLM_API_MODEL=""
+
+  case "$LLM_NUM" in
+    1) D_LLM_CLI="openai"
+       echo ""
+       D_LLM_API_KEY=$(ask_secret "OpenAI API key")
+       D_LLM_API_MODEL=$(ask_input "Model name" "gpt-4o")
+       ;;
+    2) D_LLM_CLI="gemini-api"
+       echo ""
+       D_LLM_API_KEY=$(ask_secret "Gemini API key")
+       D_LLM_API_MODEL=$(ask_input "Model name" "gemini-2.0-flash")
+       ;;
+    3) D_LLM_CLI="api"
+       echo ""
+       D_LLM_API_URL=$(ask_input "API base URL" "https://api.openai.com/v1")
+       D_LLM_API_KEY=$(ask_secret "API key")
+       D_LLM_API_MODEL=$(ask_input "Model name" "gpt-4o")
+       ;;
+    4) D_LLM_CLI="custom"
+       echo ""
+       D_LLM_CMD=$(ask_input "Custom CLI command" "my-llm")
+       warn "Custom mode: ensure the command is installed inside the container image."
+       ;;
+  esac
+
+  # ── STT selection ──────────────────────────────────────────────
+  step "STT selection"
+
+  echo ""
+  echo -e "  ${BOLD}Which service should transcribe your recordings?${NC}"
+  echo ""
+  echo -e "  ${BOLD}  1  Local / self-hosted${NC}  ${DIM}(Whisper-compatible endpoint)${NC}  ${GREEN}← default${NC}"
+  echo -e "  ${BOLD}  2  OpenAI Whisper${NC}"
+  echo -e "  ${BOLD}  3  Google Gemini${NC}"
+  echo ""
+
+  STT_NUM=""
+  while [[ ! "$STT_NUM" =~ ^[1-3]$ ]]; do
+    echo -ne "  ${MAGENTA}?${NC}  ${BOLD}Choice${NC}  ${DIM}[1]${NC}:  "
+    read -r STT_NUM
+    STT_NUM="${STT_NUM:-1}"
+  done
+
+  D_STT_PROVIDER=""
+  D_STT_URL=""
+  D_STT_KEY=""
+  D_STT_MODEL=""
+  case "$STT_NUM" in
+    1) D_STT_PROVIDER="custom"
+       echo ""
+       info "The container can't reach 'localhost' on your host — use host.docker.internal instead."
+       D_STT_URL=$(ask_input "STT base URL" "http://host.docker.internal:8080/v1")
+       D_STT_KEY=$(ask_secret "API key (leave blank for local servers)")
+       D_STT_MODEL=$(ask_input "Model name" "whisper-1")
+       ;;
+    2) D_STT_PROVIDER="openai"
+       echo ""
+       D_STT_KEY=$(ask_secret "OpenAI API key")
+       D_STT_MODEL=$(ask_input "Model name" "whisper-1")
+       ;;
+    3) D_STT_PROVIDER="gemini"
+       echo ""
+       D_STT_KEY=$(ask_secret "Gemini API key")
+       D_STT_MODEL=$(ask_input "Model name" "gemini-2.0-flash")
+       ;;
+  esac
+
+  D_PORT=$(ask_input "Host port" "3456")
+
+  # ── Write .env ─────────────────────────────────────────────────
+  step "Writing .env"
+
+  {
+    echo "MODE=docker"
+    echo "PECHPECH_PORT=${D_PORT}"
+    echo "LLM_CLI=${D_LLM_ARG}"
+  } > "$ROOT/.env"
+
+  ok ".env written."
+
+  # ── Write config.json (LLM + STT settings) ────────────────────
+  step "Writing config.json"
+  node -e "
+    const fs = require('fs');
+    const cfg = {
+      sttProvider: process.argv[1] || 'custom',
+      sttUrl:      process.argv[2] || 'http://localhost:8080/v1',
+      sttKey:      process.argv[3] || '',
+      sttModel:    process.argv[4] || 'whisper-1',
+      llmCli:      process.argv[5] || 'openai',
+      llmCommand:  process.argv[6] || '',
+      llmApiUrl:   process.argv[7] || '',
+      llmApiKey:   process.argv[8] || '',
+      llmApiModel: process.argv[9] || '',
+    };
+    fs.writeFileSync(process.argv[10], JSON.stringify(cfg, null, 2) + '\n');
+  " \
+    "$D_STT_PROVIDER" \
+    "$D_STT_URL" \
+    "$D_STT_KEY" \
+    "$D_STT_MODEL" \
+    "$D_LLM_CLI" \
+    "$D_LLM_CMD" \
+    "$D_LLM_API_URL" \
+    "$D_LLM_API_KEY" \
+    "$D_LLM_API_MODEL" \
+    "$ROOT/server/src/config.json"
+  ok "config.json written."
+
+  # ── Build ──────────────────────────────────────────────────────
+  step "Building Docker image"
+  echo ""
+  info "First run takes a few minutes: downloading base image + installing dependencies."
+  info "Subsequent runs use the cache and are much faster."
+  echo ""
+
+  spin_start "Building (grab a coffee)…"
+  "${COMPOSE_CMD[@]}" -f "$ROOT/docker-compose.yml" build &
+  BUILD_PID=$!
+  wait $BUILD_PID
+  BUILD_EXIT=$?
+  spin_stop
+  if [[ $BUILD_EXIT -ne 0 ]]; then
+    die "Docker build failed. Run:  ${COMPOSE_CMD[*]} -f docker-compose.yml build  to see the full output."
+  fi
+  ok "Image built successfully."
+
+  # ── Start ──────────────────────────────────────────────────────
+  step "Starting container"
+
+  spin_start "Starting pechpech-helper container…"
+  "${COMPOSE_CMD[@]}" -f "$ROOT/docker-compose.yml" up -d &
+  UP_PID=$!
+  wait $UP_PID
+  UP_EXIT=$?
+  spin_stop
+  if [[ $UP_EXIT -ne 0 ]]; then
+    die "Container failed to start. Check:  docker logs pechpech-helper"
+  fi
+  ok "Container started."
+
+  spin_start "Waiting for helper to become ready…"
+  HEALTHY=false
+  for _ in $(seq 1 24); do
+    sleep 0.5
+    if curl -sf "http://127.0.0.1:${D_PORT}/health" &>/dev/null; then
+      HEALTHY=true; break
+    fi
+  done
+  spin_stop
+  if $HEALTHY; then
+    ok "Helper ready at http://127.0.0.1:${D_PORT}"
+  else
+    warn "Helper didn't respond — run:  docker logs pechpech-helper"
+  fi
+
+  # ── Auto-start ─────────────────────────────────────────────────
+  step "Auto-start on login (optional)"
+  echo ""
+  info "The launcher can start the container automatically every time you log in."
+  info "You can always start it manually instead:  node launcher/index.js"
+  echo ""
+  if ask_yn "Register PechPech to start at login?"; then
+    if node "$ROOT/launcher/index.js" --install; then
+      ok "Auto-start enabled."
+    else
+      warn "Auto-start setup failed — try running manually: node launcher/index.js --install"
+    fi
+  fi
+
+  # ── Summary ────────────────────────────────────────────────────
+  hr
+  echo ""
+  echo -e "  ${BOLD}${GREEN}PechPech is running in Docker!${NC}"
+  echo ""
+  ok "Container:  pechpech-helper"
+  ok "Endpoint:   http://127.0.0.1:${D_PORT}"
+  ok "LLM:        ${D_LLM_CLI}  (change anytime in extension settings)"
+  ok "STT:        ${D_STT_PROVIDER}  (change anytime in extension settings)"
+  echo ""
+  echo -e "  ${BOLD}Docker commands:${NC}"
+  echo -e "  ${DIM}  ${COMPOSE_CMD[*]} logs -f          — live logs${NC}"
+  echo -e "  ${DIM}  ${COMPOSE_CMD[*]} down             — stop${NC}"
+  echo -e "  ${DIM}  ${COMPOSE_CMD[*]} up -d            — restart${NC}"
+  echo -e "  ${DIM}  docker exec -it pechpech-helper sh   — shell into container${NC}"
+  echo ""
+  echo -e "  ${BOLD}Load the Chrome extension:${NC}"
+  echo -e "  ${DIM}  1. Open ${CYAN}chrome://extensions${NC}"
+  echo -e "  ${DIM}  2. Enable ${BOLD}Developer mode${NC}${DIM} (top-right toggle)${NC}"
+  echo -e "  ${DIM}  3. Click ${BOLD}Load unpacked${NC}"
+  echo -e "  ${DIM}  4. Select the ${BOLD}extension/${NC}${DIM} folder in this project${NC}"
+  echo ""
+  hr
+  echo ""
+
+  echo -e "  ${BOLD}Launching PechPech now…${NC}  ${DIM}(Ctrl-C to stop)${NC}"
+  echo ""
+  exec node "$ROOT/launcher/index.js"
+
+
+# ═════════════════════════════════════════════════════════════════
+#  WITHOUT DOCKER
+# ═════════════════════════════════════════════════════════════════
+
+else
 
   # ── Node.js ────────────────────────────────────────────────────
   step "Checking Node.js"
@@ -336,13 +602,14 @@ if [[ "$MODE" == "1" ]]; then
   echo -e "  ${DIM}The AI assistant used to generate meeting minutes.${NC}"
   echo -e "  ${DIM}All settings can also be changed later from the extension's settings panel.${NC}"
   echo ""
-  echo -e "    ${BOLD}1${NC}  Claude Code  ${DIM}(claude)${NC}  — recommended"
-  echo -e "    ${BOLD}2${NC}  Custom API   ${DIM}(OpenAI-compatible endpoint)${NC}"
-  echo -e "    ${BOLD}3${NC}  Custom CLI   ${DIM}(any local CLI tool)${NC}"
+  echo -e "    ${BOLD}1${NC}  OpenAI (ChatGPT)"
+  echo -e "    ${BOLD}2${NC}  Google Gemini"
+  echo -e "    ${BOLD}3${NC}  Custom API   ${DIM}(OpenAI-compatible endpoint)${NC}"
+  echo -e "    ${BOLD}4${NC}  Custom CLI   ${DIM}(any local CLI tool)${NC}"
   echo ""
 
   LLM_NUM=""
-  while [[ ! "$LLM_NUM" =~ ^[1-3]$ ]]; do
+  while [[ ! "$LLM_NUM" =~ ^[1-4]$ ]]; do
     echo -ne "  ${MAGENTA}?${NC}  ${BOLD}Choice${NC}  ${DIM}[1]${NC}:  "
     read -r LLM_NUM
     LLM_NUM="${LLM_NUM:-1}"
@@ -354,30 +621,69 @@ if [[ "$MODE" == "1" ]]; then
   CFG_LLM_API_KEY=""
   CFG_LLM_API_MODEL=""
   case "$LLM_NUM" in
-    1) CFG_LLM_CLI="claude" ;;
-    2) CFG_LLM_CLI="api"
+    1) CFG_LLM_CLI="openai"
+       echo ""
+       CFG_LLM_API_KEY=$(ask_secret "OpenAI API key")
+       CFG_LLM_API_MODEL=$(ask_input "Model name" "gpt-4o")
+       ;;
+    2) CFG_LLM_CLI="gemini-api"
+       echo ""
+       CFG_LLM_API_KEY=$(ask_secret "Gemini API key")
+       CFG_LLM_API_MODEL=$(ask_input "Model name" "gemini-2.0-flash")
+       ;;
+    3) CFG_LLM_CLI="api"
        echo ""
        CFG_LLM_API_URL=$(ask_input "API base URL" "https://api.openai.com/v1")
        CFG_LLM_API_KEY=$(ask_secret "API key")
        CFG_LLM_API_MODEL=$(ask_input "Model name" "gpt-4o")
        ;;
-    3) echo ""
+    4) echo ""
        CFG_LLM_CLI="custom"
        CFG_LLM_CMD=$(ask_input "Full command to run your LLM" "my-llm")
        ;;
   esac
 
   echo ""
-  if [[ "$CFG_LLM_CLI" == "claude" ]]; then
-    if command -v claude &>/dev/null; then
-      ok "claude found on PATH."
-    else
-      warn "claude not found on PATH — install it before using PechPech:"
-      info "  npm install -g @anthropic-ai/claude-code"
-    fi
-  fi
+  echo -e "  ${BOLD}STT (Speech-to-Text)${NC}"
+  echo -e "  ${DIM}Converts your recorded audio into a transcript before summarizing.${NC}"
+  echo ""
+  echo -e "    ${BOLD}1${NC}  Local / self-hosted  ${DIM}(Whisper-compatible endpoint)${NC}  — default"
+  echo -e "    ${BOLD}2${NC}  OpenAI Whisper"
+  echo -e "    ${BOLD}3${NC}  Google Gemini"
+  echo ""
 
-  info "LLM and STT settings can be configured from the extension's settings panel."
+  STT_NUM=""
+  while [[ ! "$STT_NUM" =~ ^[1-3]$ ]]; do
+    echo -ne "  ${MAGENTA}?${NC}  ${BOLD}Choice${NC}  ${DIM}[1]${NC}:  "
+    read -r STT_NUM
+    STT_NUM="${STT_NUM:-1}"
+  done
+
+  CFG_STT_PROVIDER=""
+  CFG_STT_URL=""
+  CFG_STT_KEY=""
+  CFG_STT_MODEL=""
+  case "$STT_NUM" in
+    1) CFG_STT_PROVIDER="custom"
+       echo ""
+       CFG_STT_URL=$(ask_input "STT base URL" "http://localhost:8080/v1")
+       CFG_STT_KEY=$(ask_secret "API key (leave blank for local servers)")
+       CFG_STT_MODEL=$(ask_input "Model name" "whisper-1")
+       ;;
+    2) CFG_STT_PROVIDER="openai"
+       echo ""
+       CFG_STT_KEY=$(ask_secret "OpenAI API key")
+       CFG_STT_MODEL=$(ask_input "Model name" "whisper-1")
+       ;;
+    3) CFG_STT_PROVIDER="gemini"
+       echo ""
+       CFG_STT_KEY=$(ask_secret "Gemini API key")
+       CFG_STT_MODEL=$(ask_input "Model name" "gemini-2.0-flash")
+       ;;
+  esac
+
+  echo ""
+  info "LLM and STT settings can be changed anytime from the extension's settings panel."
 
   # ── Quick health check ─────────────────────────────────────────
   step "Verify installation"
@@ -418,17 +724,22 @@ if [[ "$MODE" == "1" ]]; then
   node -e "
     const fs = require('fs');
     const cfg = {
-      sttUrl:      'http://localhost:8080/v1',
-      sttKey:      '',
-      sttModel:    'whisper-1',
-      llmCli:      process.argv[1] || 'claude',
-      llmCommand:  process.argv[2] || '',
-      llmApiUrl:   process.argv[3] || '',
-      llmApiKey:   process.argv[4] || '',
-      llmApiModel: process.argv[5] || '',
+      sttProvider: process.argv[1] || 'custom',
+      sttUrl:      process.argv[2] || 'http://localhost:8080/v1',
+      sttKey:      process.argv[3] || '',
+      sttModel:    process.argv[4] || 'whisper-1',
+      llmCli:      process.argv[5] || 'openai',
+      llmCommand:  process.argv[6] || '',
+      llmApiUrl:   process.argv[7] || '',
+      llmApiKey:   process.argv[8] || '',
+      llmApiModel: process.argv[9] || '',
     };
-    fs.writeFileSync(process.argv[6], JSON.stringify(cfg, null, 2) + '\n');
+    fs.writeFileSync(process.argv[10], JSON.stringify(cfg, null, 2) + '\n');
   " \
+    "$CFG_STT_PROVIDER" \
+    "$CFG_STT_URL" \
+    "$CFG_STT_KEY" \
+    "$CFG_STT_MODEL" \
     "$CFG_LLM_CLI" \
     "$CFG_LLM_CMD" \
     "$CFG_LLM_API_URL" \
@@ -458,266 +769,12 @@ if [[ "$MODE" == "1" ]]; then
   echo ""
   $FFMPEG_OK && ok "Audio preprocessing: ffmpeg active" \
              || warn "Audio preprocessing: ffmpeg not installed — audio sent raw to STT"
-  ok "LLM CLI:       ${CFG_LLM_CLI}  (change anytime in extension settings)"
+  ok "LLM:  ${CFG_LLM_CLI}  (change anytime in extension settings)"
+  ok "STT:  ${CFG_STT_PROVIDER}  (change anytime in extension settings)"
   echo ""
   echo -e "  ${BOLD}To start PechPech:${NC}"
   echo -e "  ${DIM}  node server/src/server.js${NC}    ← simple, foreground"
   echo -e "  ${DIM}  node launcher/index.js${NC}         ← with notifications"
-  echo ""
-  echo -e "  ${BOLD}Load the Chrome extension:${NC}"
-  echo -e "  ${DIM}  1. Open ${CYAN}chrome://extensions${NC}"
-  echo -e "  ${DIM}  2. Enable ${BOLD}Developer mode${NC}${DIM} (top-right toggle)${NC}"
-  echo -e "  ${DIM}  3. Click ${BOLD}Load unpacked${NC}"
-  echo -e "  ${DIM}  4. Select the ${BOLD}extension/${NC}${DIM} folder in this project${NC}"
-  echo ""
-  hr
-  echo ""
-
-  echo -e "  ${BOLD}Launching PechPech now…${NC}  ${DIM}(Ctrl-C to stop)${NC}"
-  echo ""
-  exec node "$ROOT/launcher/index.js"
-
-
-# ═════════════════════════════════════════════════════════════════
-#  WITH DOCKER
-# ═════════════════════════════════════════════════════════════════
-
-else
-
-  # ── Docker check ───────────────────────────────────────────────
-  step "Checking Docker"
-
-  if ! command -v docker &>/dev/null; then
-    echo -e "  ${RED}✗${NC}  Docker not found."
-    info "Install Docker Desktop from https://docker.com"
-    die "Docker is required for this mode."
-  fi
-  if ! docker info &>/dev/null 2>&1; then
-    echo -e "  ${RED}✗${NC}  Docker daemon is not running."
-    info "Start Docker Desktop and try again."
-    die "Docker daemon not running."
-  fi
-  DOCKER_VER=$(docker --version | awk '{print $3}' | tr -d ',')
-  ok "Docker ${DOCKER_VER}"
-
-  # Check docker compose — use an array so "docker compose" is always two words,
-  # not one (IFS=$'\n\t' removes space from word-splitting on plain $VAR).
-  if docker compose version &>/dev/null 2>&1; then
-    COMPOSE_CMD=("docker" "compose")
-  elif command -v docker-compose &>/dev/null; then
-    warn "Using legacy docker-compose. Consider upgrading to Docker Desktop."
-    COMPOSE_CMD=("docker-compose")
-  else
-    die "Docker Compose not found. Install Docker Desktop (it includes Compose)."
-  fi
-  ok "Docker Compose: ${COMPOSE_CMD[*]}"
-
-  # ── LLM selection ─────────────────────────────────────────────
-  step "LLM selection"
-
-  echo ""
-  echo -e "  ${BOLD}Which LLM should power meeting minutes inside the container?${NC}"
-  echo ""
-  echo -e "  ${BOLD}  1  Claude Code${NC}  ${DIM}(claude)${NC}  — recommended"
-  echo -e "  ${DIM}     You'll log in once inside the container after startup.${NC}"
-  echo -e "  ${DIM}     Your session is saved on your host machine via a volume mount.${NC}"
-  echo ""
-  echo -e "  ${BOLD}  2  Custom API${NC}   ${DIM}(OpenAI-compatible endpoint)${NC}"
-  echo -e "  ${DIM}     Connect to any /chat/completions API — OpenAI, DeepSeek, Ollama, etc.${NC}"
-  echo ""
-  echo -e "  ${BOLD}  3  Custom CLI${NC}   ${DIM}(any local CLI tool)${NC}"
-  echo -e "  ${DIM}     You manage installation inside the container yourself.${NC}"
-  echo ""
-
-  LLM_NUM=""
-  while [[ ! "$LLM_NUM" =~ ^[1-3]$ ]]; do
-    echo -ne "  ${MAGENTA}?${NC}  ${BOLD}Choice${NC}  ${DIM}[1]${NC}:  "
-    read -r LLM_NUM
-    LLM_NUM="${LLM_NUM:-1}"
-  done
-
-  D_LLM_CLI=""
-  D_LLM_ARG=""
-  D_LLM_CMD=""
-  D_LLM_API_URL=""
-  D_LLM_API_KEY=""
-  D_LLM_API_MODEL=""
-  D_LLM_KEY_NAME=""
-  D_LLM_KEY_VAL=""
-  D_AUTH_VOLUME=""
-
-  case "$LLM_NUM" in
-    1)
-      D_LLM_CLI="claude"
-      D_LLM_ARG="claude"
-      # Claude auth lives in ~/.claude — mounted so login persists across rebuilds
-      D_AUTH_VOLUME='      - ${HOME}/.claude:/root/.claude'
-      ;;
-    2)
-      D_LLM_CLI="api"
-      D_LLM_ARG="none"
-      echo ""
-      D_LLM_API_URL=$(ask_input "API base URL" "https://api.openai.com/v1")
-      D_LLM_API_KEY=$(ask_secret "API key")
-      D_LLM_API_MODEL=$(ask_input "Model name" "gpt-4o")
-      ;;
-    3)
-      D_LLM_CLI="custom"
-      D_LLM_ARG="none"
-      echo ""
-      D_LLM_CMD=$(ask_input "Custom CLI command" "my-llm")
-      warn "Custom mode: ensure the command is installed inside the container image."
-      ;;
-  esac
-
-  D_PORT=$(ask_input "Host port" "3456")
-
-  # ── Write .env ─────────────────────────────────────────────────
-  step "Writing .env"
-
-  {
-    echo "MODE=docker"
-    echo "PECHPECH_PORT=${D_PORT}"
-    echo "CLAUDE_DIR=${HOME}/.claude"
-    echo "LLM_CLI=${D_LLM_ARG}"
-  } > "$ROOT/.env"
-
-  ok ".env written."
-
-  # ── Write config.json (LLM + STT settings) ────────────────────
-  step "Writing config.json"
-  node -e "
-    const fs = require('fs');
-    const cfg = {
-      sttUrl:      'http://localhost:8080/v1',
-      sttKey:      '',
-      sttModel:    'whisper-1',
-      llmCli:      process.argv[1] || 'claude',
-      llmCommand:  process.argv[2] || '',
-      llmApiUrl:   process.argv[3] || '',
-      llmApiKey:   process.argv[4] || '',
-      llmApiModel: process.argv[5] || '',
-    };
-    fs.writeFileSync(process.argv[6], JSON.stringify(cfg, null, 2) + '\n');
-  " \
-    "$D_LLM_CLI" \
-    "$D_LLM_CMD" \
-    "$D_LLM_API_URL" \
-    "$D_LLM_API_KEY" \
-    "$D_LLM_API_MODEL" \
-    "$ROOT/server/src/config.json"
-  ok "config.json written."
-
-  # ── Build ──────────────────────────────────────────────────────
-  step "Building Docker image"
-  echo ""
-  info "First run takes a few minutes: downloading base image + installing CLI."
-  info "Subsequent runs use the cache and are much faster."
-  echo ""
-
-  spin_start "Building (grab a coffee)…"
-  "${COMPOSE_CMD[@]}" -f "$ROOT/docker-compose.yml" build &
-  BUILD_PID=$!
-  wait $BUILD_PID
-  BUILD_EXIT=$?
-  spin_stop
-  if [[ $BUILD_EXIT -ne 0 ]]; then
-    die "Docker build failed. Run:  ${COMPOSE_CMD[*]} -f docker-compose.yml build  to see the full output."
-  fi
-  ok "Image built successfully."
-
-  # ── Start ──────────────────────────────────────────────────────
-  step "Starting container"
-
-  spin_start "Starting pechpech-helper container…"
-  "${COMPOSE_CMD[@]}" -f "$ROOT/docker-compose.yml" up -d &
-  UP_PID=$!
-  wait $UP_PID
-  UP_EXIT=$?
-  spin_stop
-  if [[ $UP_EXIT -ne 0 ]]; then
-    die "Container failed to start. Check:  docker logs pechpech-helper"
-  fi
-  ok "Container started."
-
-  spin_start "Waiting for helper to become ready…"
-  HEALTHY=false
-  for _ in $(seq 1 24); do
-    sleep 0.5
-    if curl -sf "http://127.0.0.1:${D_PORT}/health" &>/dev/null; then
-      HEALTHY=true; break
-    fi
-  done
-  spin_stop
-  if $HEALTHY; then
-    ok "Helper ready at http://127.0.0.1:${D_PORT}"
-  else
-    warn "Helper didn't respond — run:  docker logs pechpech-helper"
-  fi
-
-  # ── Claude login guidance ──────────────────────────────────────
-  if [[ "$D_LLM_CLI" == "claude" ]]; then
-    step "Claude authentication"
-    echo ""
-
-    # ~/.claude is mounted into the container — check if credentials already exist on the host
-    if [[ -d "$HOME/.claude" ]] && [[ -n "$(ls -A "$HOME/.claude" 2>/dev/null)" ]]; then
-      ok "Claude credentials found in ~/.claude — already logged in."
-      info "The container has access to them via the mounted volume."
-    else
-      info "PechPech uses the Claude CLI inside the container to generate meeting minutes."
-      info "Claude requires a one-time login to link the CLI to your Anthropic account."
-      info "This opens a browser page where you approve access — nothing is stored in the"
-      info "cloud beyond your normal Claude account session."
-      echo ""
-      info "Your login session will be saved in ~/.claude on your host machine (not inside"
-      info "the container), so it persists automatically even if you rebuild the image."
-      echo ""
-
-      if ask_yn "Run the login command now? (opens a browser window)"; then
-        echo ""
-        info "Running:  docker exec -it pechpech-helper claude login"
-        echo ""
-        docker exec -it pechpech-helper claude login || warn "Login exited with an error — you can retry manually:"
-        echo ""
-        info "  docker exec -it pechpech-helper claude login"
-      else
-        echo ""
-        info "You can log in later by running:"
-        echo -e "  ${BOLD}${CYAN}  docker exec -it pechpech-helper claude login${NC}"
-      fi
-    fi
-    echo ""
-  fi
-
-  # ── Auto-start ─────────────────────────────────────────────────
-  step "Auto-start on login (optional)"
-  echo ""
-  info "The launcher can start the container automatically every time you log in."
-  info "You can always start it manually instead:  node launcher/index.js"
-  echo ""
-  if ask_yn "Register PechPech to start at login?"; then
-    if node "$ROOT/launcher/index.js" --install; then
-      ok "Auto-start enabled."
-    else
-      warn "Auto-start setup failed — try running manually: node launcher/index.js --install"
-    fi
-  fi
-
-  # ── Summary ────────────────────────────────────────────────────
-  hr
-  echo ""
-  echo -e "  ${BOLD}${GREEN}PechPech is running in Docker!${NC}"
-  echo ""
-  ok "Container:  pechpech-helper"
-  ok "Endpoint:   http://127.0.0.1:${D_PORT}"
-  ok "LLM:        ${D_LLM_CLI}"
-  echo ""
-  echo -e "  ${BOLD}Docker commands:${NC}"
-  echo -e "  ${DIM}  ${COMPOSE_CMD[*]} logs -f          — live logs${NC}"
-  echo -e "  ${DIM}  ${COMPOSE_CMD[*]} down             — stop${NC}"
-  echo -e "  ${DIM}  ${COMPOSE_CMD[*]} up -d            — restart${NC}"
-  echo -e "  ${DIM}  docker exec -it pechpech-helper sh   — shell into container${NC}"
   echo ""
   echo -e "  ${BOLD}Load the Chrome extension:${NC}"
   echo -e "  ${DIM}  1. Open ${CYAN}chrome://extensions${NC}"

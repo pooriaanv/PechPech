@@ -145,7 +145,7 @@
     #api-fields.visible {
       display: block;
     }
-    #api-url-field.hidden {
+    .hidden {
       display: none;
     }
 
@@ -301,6 +301,16 @@
       <div class="card-title">تبدیل گفتار به متن (STT)</div>
 
       <div class="field">
+        <label for="stt-provider">نوع سرویس</label>
+        <select id="stt-provider">
+          <option value="custom">سرور محلی / سفارشی (Whisper-compatible)</option>
+          <option value="openai">OpenAI Whisper</option>
+          <option value="gemini">Google Gemini</option>
+        </select>
+        <p class="field-hint">برای OpenAI و Gemini فقط کلید API و نام مدل لازم است.</p>
+      </div>
+
+      <div class="field" id="stt-url-field">
         <label for="stt-url">آدرس پایه سرور STT</label>
         <input type="url" id="stt-url" placeholder="http://localhost:8080/v1" />
         <p class="field-hint">
@@ -310,15 +320,15 @@
       </div>
 
       <div class="field">
-        <label for="stt-key">کلید API (اختیاری)</label>
+        <label for="stt-key">کلید API<span id="stt-key-optional-label"> (اختیاری)</span></label>
         <input type="password" id="stt-key" placeholder="sk-..." autocomplete="off" />
-        <p class="field-hint">برای سرور محلی خالی بگذارید. برای OpenAI / Groq وارد کنید.</p>
+        <p class="field-hint" id="stt-key-hint">برای سرور محلی خالی بگذارید. برای OpenAI / Groq وارد کنید.</p>
       </div>
 
       <div class="field">
         <label for="stt-model">نام مدل STT</label>
         <input type="text" id="stt-model" placeholder="whisper-1" />
-        <p class="field-hint">
+        <p class="field-hint" id="stt-model-hint">
           پیش‌فرض: <code>whisper-1</code> (OpenAI) &nbsp;|&nbsp;
           GapGPT: <code>whisper-large-v3</code>
         </p>
@@ -332,13 +342,12 @@
       <div class="field">
         <label for="llm-cli">نوع اتصال</label>
         <select id="llm-cli">
-          <option value="claude">Claude Code (claude)</option>
           <option value="openai">OpenAI (ChatGPT)</option>
           <option value="gemini-api">Google Gemini</option>
           <option value="api">Custom API (OpenAI-compatible)</option>
           <option value="custom">Custom CLI</option>
         </select>
-        <p class="field-hint">Claude Code باید از قبل نصب و وارد سیستم شده باشد.</p>
+        <p class="field-hint">برای OpenAI و Gemini فقط کلید API و نام مدل لازم است.</p>
       </div>
 
       <div class="field" id="custom-command-field">

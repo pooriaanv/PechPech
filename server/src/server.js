@@ -20,10 +20,11 @@ const HOST = process.env.PECHPECH_HOST || '127.0.0.1';
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 
 const CONFIG_DEFAULTS = {
+  sttProvider: 'custom',
   sttUrl:      'http://localhost:8080/v1',
   sttKey:      '',
   sttModel:    'whisper-1',
-  llmCli:      'claude',
+  llmCli:      'openai',
   llmCommand:  '',
   llmApiUrl:   '',
   llmApiKey:   '',

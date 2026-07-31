@@ -181,7 +181,7 @@ function createOpenAIAdapter({ llmApiKey, llmApiModel }) {
 
 function createGeminiAdapter({ llmApiKey, llmApiModel }) {
   const apiKey = llmApiKey || '';
-  const model  = llmApiModel || 'gemini-2.0-flash';
+  const model  = llmApiModel || 'gemini-3.6-flash';
 
   if (!apiKey) {
     throw new Error('Gemini selected but no API key is set. Add it in the extension settings.');

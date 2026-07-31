@@ -207,7 +207,7 @@ if [[ "$MODE" == "1" ]]; then
     2) D_LLM_CLI="gemini-api"
        echo ""
        D_LLM_API_KEY=$(ask_secret "Gemini API key")
-       D_LLM_API_MODEL=$(ask_input "Model name" "gemini-2.0-flash")
+       D_LLM_API_MODEL=$(ask_input "Model name" "gemini-3.6-flash")
        ;;
     3) D_LLM_CLI="api"
        echo ""
@@ -260,7 +260,7 @@ if [[ "$MODE" == "1" ]]; then
     3) D_STT_PROVIDER="gemini"
        echo ""
        D_STT_KEY=$(ask_secret "Gemini API key")
-       D_STT_MODEL=$(ask_input "Model name" "gemini-2.0-flash")
+       D_STT_MODEL=$(ask_input "Model name" "gemini-3.6-flash")
        ;;
   esac
 
@@ -629,7 +629,7 @@ else
     2) CFG_LLM_CLI="gemini-api"
        echo ""
        CFG_LLM_API_KEY=$(ask_secret "Gemini API key")
-       CFG_LLM_API_MODEL=$(ask_input "Model name" "gemini-2.0-flash")
+       CFG_LLM_API_MODEL=$(ask_input "Model name" "gemini-3.6-flash")
        ;;
     3) CFG_LLM_CLI="api"
        echo ""
@@ -678,7 +678,7 @@ else
     3) CFG_STT_PROVIDER="gemini"
        echo ""
        CFG_STT_KEY=$(ask_secret "Gemini API key")
-       CFG_STT_MODEL=$(ask_input "Model name" "gemini-2.0-flash")
+       CFG_STT_MODEL=$(ask_input "Model name" "gemini-3.6-flash")
        ;;
   esac
 

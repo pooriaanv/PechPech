@@ -67,16 +67,19 @@ domainInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preven
 const API_URL_FIELD  = document.getElementById('api-url-field');
 const API_MODEL_HINT = document.getElementById('llm-api-model-hint');
 const API_KEY_HINT   = document.getElementById('llm-api-key-hint');
+const API_KEY_LINK   = document.getElementById('llm-api-key-link');
 
 // Presets: only need a model + API key from the user — base URL is fixed.
 const API_PRESETS = {
   openai: {
     modelPlaceholder: 'gpt-4o',
     keyHint:          'کلید API از platform.openai.com',
+    keyLinkUrl:       'https://platform.openai.com/api-keys',
   },
   'gemini-api': {
-    modelPlaceholder: 'gemini-2.0-flash',
+    modelPlaceholder: 'gemini-3.6-flash',
     keyHint:          'کلید API از aistudio.google.com',
+    keyLinkUrl:       'https://aistudio.google.com/apikey',
   },
 };
 
@@ -92,6 +95,13 @@ function updateLLMFields() {
   llmApiModelEl.placeholder = preset?.modelPlaceholder || 'gpt-4o';
   API_MODEL_HINT.innerHTML  = `پیش‌فرض: <code>${preset?.modelPlaceholder || 'gpt-4o'}</code>`;
   API_KEY_HINT.textContent  = preset?.keyHint || '';
+
+  if (preset?.keyLinkUrl) {
+    API_KEY_LINK.href = preset.keyLinkUrl;
+    API_KEY_LINK.classList.remove('hidden');
+  } else {
+    API_KEY_LINK.classList.add('hidden');
+  }
 }
 llmCliEl.addEventListener('change', updateLLMFields);
 
@@ -101,6 +111,7 @@ const STT_URL_FIELD       = document.getElementById('stt-url-field');
 const STT_MODEL_HINT      = document.getElementById('stt-model-hint');
 const STT_KEY_HINT        = document.getElementById('stt-key-hint');
 const STT_KEY_OPTIONAL_LBL = document.getElementById('stt-key-optional-label');
+const STT_KEY_LINK        = document.getElementById('stt-key-link');
 
 const STT_DEFAULT_HINT = {
   modelPlaceholder: 'whisper-1',
@@ -116,12 +127,14 @@ const STT_PRESETS = {
     modelHint:  'پیش‌فرض: <code>whisper-1</code>',
     keyHint:    'کلید API از platform.openai.com — الزامی است.',
     keyOptional: false,
+    keyLinkUrl: 'https://platform.openai.com/api-keys',
   },
   gemini: {
-    modelPlaceholder: 'gemini-2.0-flash',
-    modelHint:  'پیش‌فرض: <code>gemini-2.0-flash</code>',
+    modelPlaceholder: 'gemini-3.6-flash',
+    modelHint:  'پیش‌فرض: <code>gemini-3.6-flash</code>',
     keyHint:    'کلید API از aistudio.google.com — الزامی است.',
     keyOptional: false,
+    keyLinkUrl: 'https://aistudio.google.com/apikey',
   },
 };
 
@@ -134,6 +147,13 @@ function updateSTTFields() {
   STT_MODEL_HINT.innerHTML = preset.modelHint;
   STT_KEY_HINT.textContent = preset.keyHint;
   STT_KEY_OPTIONAL_LBL.classList.toggle('hidden', !preset.keyOptional);
+
+  if (preset.keyLinkUrl) {
+    STT_KEY_LINK.href = preset.keyLinkUrl;
+    STT_KEY_LINK.classList.remove('hidden');
+  } else {
+    STT_KEY_LINK.classList.add('hidden');
+  }
 }
 sttProviderEl.addEventListener('change', updateSTTFields);
 

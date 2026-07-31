@@ -135,6 +135,7 @@ async function handleStart(sendResponse) {
     // Save state BEFORE telling offscreen to start, so if SW dies between
     // these two lines the state is already persisted.
     await saveState({ isRecording: true, recordingTabId: tab.id, startedAt: Date.now() });
+    clearMeetingBadge(tab.id);
 
     const { helperPort } = await chrome.storage.local.get(['helperPort']);
     chrome.runtime.sendMessage({ type: 'START_CAPTURE', streamId, tabId: tab.id, helperPort: helperPort || 3456 });
@@ -233,6 +234,7 @@ async function closeOffscreenDocument() {
 
 chrome.tabs.onRemoved.addListener(async (tabId) => {
   _notifiedTabs.delete(tabId);
+  _badgedTabs.delete(tabId);
   const state = await readState();
   if (tabId === state.recordingTabId && state.isRecording) {
     console.warn('[background] Recording tab closed during recording.');
@@ -274,16 +276,42 @@ function isMeetingUrl(url) {
 // In-memory cooldown: avoid re-notifying the same tab within 30 min
 const _notifiedTabs = new Map();
 
+// Tabs currently showing the toolbar-badge reminder — independent of the
+// notification cooldown above, since the badge is passive (not spammy) and
+// should stay visible for as long as the tab is on a meeting URL.
+const _badgedTabs = new Set();
+
+function setMeetingBadge(tabId) {
+  chrome.action.setBadgeText({ text: '●', tabId });
+  chrome.action.setBadgeBackgroundColor({ color: '#7c3aed', tabId });
+  chrome.action.setTitle({ tabId, title: 'جلسه شناسایی شد — برای ضبط روی آیکون کلیک کنید' });
+  _badgedTabs.add(tabId);
+}
+
+function clearMeetingBadge(tabId) {
+  if (!_badgedTabs.has(tabId)) return;
+  chrome.action.setBadgeText({ text: '', tabId });
+  chrome.action.setTitle({ tabId, title: '' });
+  _badgedTabs.delete(tabId);
+}
+
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // Full navigations fire with status:'complete' (tab.url is final).
   // SPA route changes (e.g. Meet's "New meeting" while already on the
   // site) use history.pushState — Chrome reports only changeInfo.url,
   // with no status field at all. Handle both.
   const url = changeInfo.url || (changeInfo.status === 'complete' ? tab.url : null);
-  if (!isMeetingUrl(url)) return;
+  if (url === null) return;
+
+  if (!isMeetingUrl(url)) {
+    clearMeetingBadge(tabId);
+    return;
+  }
 
   const state = await readState();
   if (state.isRecording) return;
+
+  setMeetingBadge(tabId);
 
   const last = _notifiedTabs.get(tabId);
   if (last && Date.now() - last < 30 * 60 * 1000) return;

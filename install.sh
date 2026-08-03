@@ -180,12 +180,16 @@ if [[ "$MODE" == "1" ]]; then
   echo -e "  ${BOLD}  3  Custom API${NC}   ${DIM}(OpenAI-compatible endpoint)${NC}"
   echo -e "  ${DIM}     Connect to any /chat/completions API — DeepSeek, Ollama, etc.${NC}"
   echo ""
-  echo -e "  ${BOLD}  4  Custom CLI${NC}   ${DIM}(any local CLI tool)${NC}"
+  echo -e "  ${BOLD}  4  Claude Code${NC}  ${DIM}(claude)${NC}"
+  echo -e "  ${DIM}     You'll log in once inside the container after startup.${NC}"
+  echo -e "  ${DIM}     Session lives inside the container — log in again if it's rebuilt/recreated.${NC}"
+  echo ""
+  echo -e "  ${BOLD}  5  Custom CLI${NC}   ${DIM}(any local CLI tool)${NC}"
   echo -e "  ${DIM}     You manage installation inside the container yourself.${NC}"
   echo ""
 
   LLM_NUM=""
-  while [[ ! "$LLM_NUM" =~ ^[1-4]$ ]]; do
+  while [[ ! "$LLM_NUM" =~ ^[1-5]$ ]]; do
     echo -ne "  ${MAGENTA}?${NC}  ${BOLD}Choice${NC}  ${DIM}[1]${NC}:  "
     read -r LLM_NUM
     LLM_NUM="${LLM_NUM:-1}"
@@ -215,7 +219,10 @@ if [[ "$MODE" == "1" ]]; then
        D_LLM_API_KEY=$(ask_secret "API key")
        D_LLM_API_MODEL=$(ask_input "Model name" "gpt-4o")
        ;;
-    4) D_LLM_CLI="custom"
+    4) D_LLM_CLI="claude"
+       D_LLM_ARG="claude"
+       ;;
+    5) D_LLM_CLI="custom"
        echo ""
        D_LLM_CMD=$(ask_input "Custom CLI command" "my-llm")
        warn "Custom mode: ensure the command is installed inside the container image."
@@ -351,6 +358,33 @@ if [[ "$MODE" == "1" ]]; then
     ok "Helper ready at http://127.0.0.1:${D_PORT}"
   else
     warn "Helper didn't respond — run:  docker logs pechpech-helper"
+  fi
+
+  # ── Claude login guidance ──────────────────────────────────────
+  if [[ "$D_LLM_CLI" == "claude" ]]; then
+    step "Claude authentication"
+    echo ""
+    info "PechPech uses the Claude CLI inside the container to generate meeting minutes."
+    info "Claude requires a one-time login to link the CLI to your Anthropic account."
+    info "This opens a browser page where you approve access — nothing is stored in the"
+    info "cloud beyond your normal Claude account session."
+    echo ""
+    info "Your login lives inside the container's own filesystem — not on your host — so"
+    info "you'll need to log in again if the container is ever removed or rebuilt."
+    echo ""
+    if ask_yn "Run the login command now? (opens a browser window)"; then
+      echo ""
+      info "Running:  docker exec -it pechpech-helper claude login"
+      echo ""
+      docker exec -it pechpech-helper claude login || warn "Login exited with an error — you can retry manually:"
+      echo ""
+      info "  docker exec -it pechpech-helper claude login"
+    else
+      echo ""
+      info "You can log in later by running:"
+      echo -e "  ${BOLD}${CYAN}  docker exec -it pechpech-helper claude login${NC}"
+    fi
+    echo ""
   fi
 
   # ── Auto-start ─────────────────────────────────────────────────
@@ -605,11 +639,12 @@ else
   echo -e "    ${BOLD}1${NC}  OpenAI (ChatGPT)"
   echo -e "    ${BOLD}2${NC}  Google Gemini"
   echo -e "    ${BOLD}3${NC}  Custom API   ${DIM}(OpenAI-compatible endpoint)${NC}"
-  echo -e "    ${BOLD}4${NC}  Custom CLI   ${DIM}(any local CLI tool)${NC}"
+  echo -e "    ${BOLD}4${NC}  Claude Code  ${DIM}(claude)${NC}"
+  echo -e "    ${BOLD}5${NC}  Custom CLI   ${DIM}(any local CLI tool)${NC}"
   echo ""
 
   LLM_NUM=""
-  while [[ ! "$LLM_NUM" =~ ^[1-4]$ ]]; do
+  while [[ ! "$LLM_NUM" =~ ^[1-5]$ ]]; do
     echo -ne "  ${MAGENTA}?${NC}  ${BOLD}Choice${NC}  ${DIM}[1]${NC}:  "
     read -r LLM_NUM
     LLM_NUM="${LLM_NUM:-1}"
@@ -637,7 +672,16 @@ else
        CFG_LLM_API_KEY=$(ask_secret "API key")
        CFG_LLM_API_MODEL=$(ask_input "Model name" "gpt-4o")
        ;;
-    4) echo ""
+    4) CFG_LLM_CLI="claude"
+       echo ""
+       if command -v claude &>/dev/null; then
+         ok "claude found on PATH."
+       else
+         warn "claude not found on PATH — install it before using PechPech:"
+         info "  npm install -g @anthropic-ai/claude-code && claude login"
+       fi
+       ;;
+    5) echo ""
        CFG_LLM_CLI="custom"
        CFG_LLM_CMD=$(ask_input "Full command to run your LLM" "my-llm")
        ;;

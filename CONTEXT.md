@@ -298,8 +298,7 @@ The `.env` file (gitignored) controls how the launcher starts the server:
 |---|---|---|
 | `MODE` | `native` / `docker` | How the launcher starts the backend |
 | `PECHPECH_PORT` | `3456` | Port exposed on the host |
-| `LLM_CLI` | `claude` / `api` / `custom` | Baked into the Docker image at build time |
-| `CLAUDE_DIR` | path | `~/.claude` path for Docker volume mount (Claude only) |
+| `LLM_CLI` | `openai` / `gemini-api` / `api` / `claude` / `custom` | Baked into the Docker image at build time |
 
 API keys and STT credentials are **not** stored in `.env` — they go in `config.json`.
 

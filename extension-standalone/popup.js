@@ -1,13 +1,29 @@
 /**
- * popup.js — PechPech
+ * popup.js — PechPech Standalone
  *
  * Flow:
- *   idle → recording → [uploading] → idle (recording in list with Process button)
+ *   idle → recording → [saving] → idle (recording in list with Process button)
  *   idle → click Process on list item → processing → result
  *
  * State (processing / result / error) is persisted in chrome.storage.session
  * so reopening the popup restores exactly where the user left off.
+ *
+ * Adapted from extension/popup.js — no local server. Recordings live in
+ * IndexedDB (store.js); processing is triggered via a fire-and-forget
+ * message to background.js, then popup.js polls store.js directly instead
+ * of polling an HTTP endpoint.
  */
+
+import { listRecordings, getRecording, updateRecording, deleteRecording } from './store.js';
+
+// Wraps chrome.runtime.sendMessage in a Promise. background.js's
+// PROCESS_RECORDING/CORRECT_TRANSCRIPT/CANCEL_PROCESSING handlers hold the
+// channel open until their first (async, IndexedDB) status write lands —
+// awaiting this before polling/refreshing avoids reading a stale prior
+// status for one tick.
+function sendMessage(msg) {
+  return new Promise(resolve => chrome.runtime.sendMessage(msg, resolve));
+}
 
 // ── DOM ───────────────────────────────────────────────────────────
 
@@ -59,8 +75,7 @@ let elapsedStart  = null;
 let pollingTimer  = null;
 let currentMOM    = null;
 let currentMode   = 'mom'; // 'mom' | 'notes'
-let currentProcessingId   = null;
-let currentProcessingPort = null;
+let currentProcessingId = null;
 
 // ── Session state helpers ─────────────────────────────────────────
 
@@ -157,16 +172,15 @@ function setProcessingStep(status) {
   el.stepSum.className   = 'step-item';
 
   const msgs = {
-    uploading:    'در حال آپلود صدا…',
-    processing:   'در حال رونویسی…',
+    saving:       'در حال ذخیره‌سازی ضبط…',
     transcribing: 'در حال رونویسی…',
     summarizing:  currentMode === 'notes' ? 'در حال استخراج یادداشت‌ها…' : 'در حال تولید صورت‌جلسه…',
   };
   el.procMsg.textContent = msgs[status] || 'در حال پردازش…';
 
-  if (status === 'uploading') {
-    // No step highlighted during upload
-  } else if (status === 'processing' || status === 'transcribing') {
+  if (status === 'saving') {
+    // No step highlighted while saving
+  } else if (status === 'transcribing') {
     el.stepTrans.classList.add('active');
   } else if (status === 'summarizing') {
     el.stepTrans.classList.add('done');
@@ -214,10 +228,19 @@ function updateTranscriptSection(mom) {
   }
 }
 
-function loadSettings() {
-  return new Promise(r =>
-    chrome.storage.local.get(['helperPort'], r)
-  );
+function momFromRecord(rec) {
+  return {
+    id:                   rec.id,
+    title:                rec.title                || null,
+    mode:                 rec.mode                 || 'mom',
+    notes:                rec.notes                || '',
+    summary:              rec.summary              || '',
+    decisions:            rec.decisions            || '',
+    action_items:         rec.action_items         || '',
+    transcript:           rec.transcript           || '',
+    corrected_transcript: rec.corrected_transcript || '',
+    correction_status:    rec.correction_status    || null,
+  };
 }
 
 // ── Polling ───────────────────────────────────────────────────────
@@ -231,29 +254,12 @@ function startPolling(recordingId) {
 
   async function poll() {
     try {
-      const { helperPort } = await loadSettings();
-      const port = helperPort || 3456;
-      const res  = await fetch(`http://localhost:${port}/recordings/${recordingId}`, {
-        signal: AbortSignal.timeout(5000),
-      });
-      if (!res.ok) return;
-
-      const rec = await res.json();
+      const rec = await getRecording(recordingId);
+      if (!rec) return;
 
       if (rec.status === 'done') {
         stopPolling();
-        const mom = {
-          id:                   rec.id,
-          title:                rec.title                 || null,
-          mode:                 rec.mode                  || 'mom',
-          notes:                rec.notes                 || '',
-          summary:              rec.summary               || '',
-          decisions:            rec.decisions             || '',
-          action_items:         rec.action_items          || '',
-          transcript:           rec.transcript            || '',
-          corrected_transcript: rec.corrected_transcript  || '',
-          correction_status:    rec.correction_status     || null,
-        };
+        const mom = momFromRecord(rec);
         currentMOM = mom;
         await saveSession({ popupState: 'result', currentMOM: mom });
         displayResult(mom);
@@ -281,18 +287,16 @@ const PAUSE_ICON = `<svg width="9" height="11" viewBox="0 0 9 11" fill="currentC
 
 class AudioPlayer {
   constructor() {
-    this._audio = new Audio();
-    this._id    = null;
-    this._port  = 3456;
+    this._audio     = new Audio();
+    this._id        = null;
+    this._objectUrl = null;
 
     this._audio.addEventListener('timeupdate',      () => this._sync());
     this._audio.addEventListener('ended',           () => this._onEnd());
     this._audio.addEventListener('loadedmetadata',  () => this._onLoad());
   }
 
-  setPort(p) { this._port = p; }
-
-  toggle(id) {
+  async toggle(id) {
     if (this._id === id && !this._audio.paused) {
       this._audio.pause();
       this._setBtn(id, false);
@@ -300,8 +304,15 @@ class AudioPlayer {
     }
     if (this._id && this._id !== id) this._setBtn(this._id, false);
 
+    if (this._id !== id) {
+      const rec = await getRecording(id);
+      if (!rec?.audioBlob) return;
+      if (this._objectUrl) URL.revokeObjectURL(this._objectUrl);
+      this._objectUrl = URL.createObjectURL(rec.audioBlob);
+      this._audio.src = this._objectUrl;
+    }
+
     this._id = id;
-    this._audio.src = `http://localhost:${this._port}/recordings/${id}/audio`;
     this._audio.play().catch(e => console.warn('[player]', e.message));
     this._setBtn(id, true);
   }
@@ -372,7 +383,7 @@ function escapeHtml(str) {
 
 function fmtDate(createdAt) {
   const d = new Date(createdAt);
-  return d.toLocaleDateString('fa-IR') + ' ' +
+  return d.toLocaleDateString('fa-IR') + ' ' +
          d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
 }
 
@@ -387,15 +398,15 @@ function buildMeta(r) {
   `;
 }
 
-function wireMeta(meta, rec, port) {
+function wireMeta(meta, rec) {
   if (!meta) return;
   const editBtn   = meta.querySelector('.rec-edit-btn');
   const titleText = meta.querySelector('.rec-title-text');
-  if (editBtn)   editBtn.addEventListener('click',   e => { e.stopPropagation(); enterTitleEdit(meta, rec, port); });
-  if (titleText) titleText.addEventListener('click', e => { e.stopPropagation(); enterTitleEdit(meta, rec, port); });
+  if (editBtn)   editBtn.addEventListener('click',   e => { e.stopPropagation(); enterTitleEdit(meta, rec); });
+  if (titleText) titleText.addEventListener('click', e => { e.stopPropagation(); enterTitleEdit(meta, rec); });
 }
 
-function enterTitleEdit(meta, rec, port) {
+function enterTitleEdit(meta, rec) {
   if (meta.dataset.editing) return;
   meta.dataset.editing = '1';
 
@@ -419,22 +430,18 @@ function enterTitleEdit(meta, rec, port) {
     delete meta.dataset.editing;
     const newTitle = input.value.trim().slice(0, 80) || null;
     try {
-      await fetch(`http://localhost:${port}/recordings/${rec.id}`, {
-        method:  'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ title: newTitle }),
-      });
+      await updateRecording(rec.id, { title: newTitle });
       rec.title = newTitle;
     } catch (_) { /* silently revert to old title */ }
     meta.innerHTML = buildMeta(rec);
-    wireMeta(meta, rec, port);
+    wireMeta(meta, rec);
   }
 
   function doCancel() {
     if (!meta.dataset.editing) return;
     delete meta.dataset.editing;
     meta.innerHTML = buildMeta(rec);
-    wireMeta(meta, rec, port);
+    wireMeta(meta, rec);
   }
 
   // Prevent input blur when clicking action buttons
@@ -453,15 +460,7 @@ function enterTitleEdit(meta, rec, port) {
 async function loadRecordingsList() {
   el.recList.innerHTML = '<div class="rec-empty">در حال بارگذاری…</div>';
   try {
-    const settings = await loadSettings();
-    const port = settings.helperPort || 3456;
-    player.setPort(port);
-
-    const res      = await fetch(`http://localhost:${port}/recordings`, {
-      signal: AbortSignal.timeout(3000),
-    });
-    if (!res.ok) throw new Error();
-    const list = await res.json();
+    const list = await listRecordings();
 
     if (!list.length) {
       el.recList.innerHTML = '<div class="rec-empty">هنوز ضبطی وجود ندارد.</div>';
@@ -469,10 +468,11 @@ async function loadRecordingsList() {
     }
 
     el.recList.innerHTML = list.slice(0, 40).map(r => buildCard(r)).join('');
-    wireCardEvents(list, port, settings);
+    wireCardEvents(list);
 
-  } catch (_) {
-    el.recList.innerHTML = '<div class="rec-empty">سرور در دسترس نیست.</div>';
+  } catch (err) {
+    console.error('[popup] loadRecordingsList error:', err);
+    el.recList.innerHTML = '<div class="rec-empty">خطا در بارگذاری ضبط‌ها.</div>';
   }
 }
 
@@ -480,14 +480,13 @@ function buildCard(r) {
   const labels = {
     saved:        'ذخیره شده',
     done:         '✓ آماده',
-    processing:   'پردازش…',
     transcribing: 'رونویسی…',
     summarizing:  'خلاصه‌سازی…',
     error:        'خطا',
   };
   const badge  = labels[r.status] || r.status;
-  const hasAudio = ['saved', 'done', 'error', 'processing', 'transcribing', 'summarizing'].includes(r.status);
-  const busy     = ['processing', 'transcribing', 'summarizing'].includes(r.status);
+  const hasAudio = true; // every record has an inline audioBlob in this variant
+  const busy     = ['transcribing', 'summarizing'].includes(r.status);
 
   const playerHTML = hasAudio ? `
     <div class="rec-player">
@@ -544,7 +543,7 @@ function buildCard(r) {
     </div>`;
 }
 
-function wireCardEvents(list, port, settings) {
+function wireCardEvents(list) {
   // Play buttons
   el.recList.querySelectorAll('[data-play]').forEach(btn => {
     btn.addEventListener('click', () => player.toggle(btn.dataset.play));
@@ -563,34 +562,21 @@ function wireCardEvents(list, port, settings) {
     btn.addEventListener('click', () => {
       const r = list.find(x => x.id === btn.dataset.view);
       if (!r) return;
-      currentMOM = {
-        id:                   r.id,
-        title:                r.title                 || null,
-        mode:                 r.mode                  || 'mom',
-        notes:                r.notes                 || '',
-        summary:              r.summary               || '',
-        decisions:            r.decisions             || '',
-        action_items:         r.action_items          || '',
-        transcript:           r.transcript            || '',
-        corrected_transcript: r.corrected_transcript  || '',
-        correction_status:    r.correction_status     || null,
-      };
+      currentMOM = momFromRecord(r);
       displayResult(currentMOM);
     });
   });
 
   // Process
   el.recList.querySelectorAll('[data-process]').forEach(btn => {
-    btn.addEventListener('click', () => triggerProcess(btn.dataset.process, port, settings, currentMode));
+    btn.addEventListener('click', () => triggerProcess(btn.dataset.process, currentMode));
   });
 
   // Cancel (busy list cards)
   el.recList.querySelectorAll('[data-cancel]').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      await fetch(`http://localhost:${port}/recordings/${btn.dataset.cancel}/cancel`, {
-        method: 'POST',
-      }).catch(() => {});
+      await sendMessage({ type: 'CANCEL_PROCESSING', id: btn.dataset.cancel });
       loadRecordingsList();
     });
   });
@@ -599,9 +585,7 @@ function wireCardEvents(list, port, settings) {
   el.recList.querySelectorAll('[data-del]').forEach(btn => {
     btn.addEventListener('click', async e => {
       e.stopPropagation();
-      await fetch(`http://localhost:${port}/recordings/${btn.dataset.del}`, {
-        method: 'DELETE',
-      }).catch(() => {});
+      await deleteRecording(btn.dataset.del).catch(() => {});
       loadRecordingsList();
     });
   });
@@ -609,41 +593,25 @@ function wireCardEvents(list, port, settings) {
   // Title editing
   el.recList.querySelectorAll('.rec-card').forEach(card => {
     const rec = list.find(x => x.id === card.dataset.recId);
-    if (rec) wireMeta(card.querySelector('.rec-meta'), rec, port);
+    if (rec) wireMeta(card.querySelector('.rec-meta'), rec);
   });
 }
 
-async function triggerProcess(id, port, settings, mode = 'mom') {
-  currentProcessingId   = id;
-  currentProcessingPort = port;
+async function triggerProcess(id, mode = 'mom') {
+  currentProcessingId = id;
   showState('processing');
-  setProcessingStep('processing');
+  setProcessingStep('transcribing');
   await saveSession({ popupState: 'processing', recordingId: id, currentMode: mode });
 
-  try {
-    const res = await fetch(`http://localhost:${port}/recordings/${id}/process`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ mode }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
-
-    startPolling(data.id || id);
-
-  } catch (err) {
-    await saveSession({ popupState: 'error', errorMsg: err.message });
-    showError(err.message);
-  }
+  await sendMessage({ type: 'PROCESS_RECORDING', id, mode });
+  startPolling(id);
 }
 
 el.btnCancelProcessing.addEventListener('click', async () => {
-  if (!currentProcessingId || !currentProcessingPort) return;
-  await fetch(`http://localhost:${currentProcessingPort}/recordings/${currentProcessingId}/cancel`, {
-    method: 'POST',
-  }).catch(() => {});
+  if (!currentProcessingId) return;
+  const id = currentProcessingId;
   currentProcessingId = null;
+  await sendMessage({ type: 'CANCEL_PROCESSING', id });
   resetToIdle();
 });
 
@@ -651,33 +619,19 @@ el.btnCancelProcessing.addEventListener('click', async () => {
 
 el.btnCorrect.addEventListener('click', async () => {
   if (!currentMOM?.id) return;
-  const settings = await loadSettings();
-  const port     = settings.helperPort || 3456;
 
   currentMOM.correction_status = 'correcting';
   updateTranscriptSection(currentMOM);
 
-  try {
-    await fetch(`http://localhost:${port}/recordings/${currentMOM.id}/correct`, {
-      method: 'POST',
-    });
-  } catch (err) {
-    currentMOM.correction_status = null;
-    updateTranscriptSection(currentMOM);
-    return;
-  }
-
-  pollCorrection(currentMOM.id, port);
+  await sendMessage({ type: 'CORRECT_TRANSCRIPT', id: currentMOM.id });
+  pollCorrection(currentMOM.id);
 });
 
-function pollCorrection(id, port) {
+function pollCorrection(id) {
   const timer = setInterval(async () => {
     try {
-      const res = await fetch(`http://localhost:${port}/recordings/${id}`, {
-        signal: AbortSignal.timeout(5000),
-      });
-      if (!res.ok) return;
-      const rec = await res.json();
+      const rec = await getRecording(id);
+      if (!rec) return;
 
       if (rec.correction_status === 'done') {
         clearInterval(timer);
@@ -729,18 +683,6 @@ el.btnStart.addEventListener('click', async () => {
     }
   }
 
-  // Health check
-  try {
-    const { helperPort } = await loadSettings();
-    const probe = await fetch(`http://localhost:${helperPort || 3456}/health`, {
-      signal: AbortSignal.timeout(2000),
-    }).catch(() => null);
-    if (!probe?.ok) {
-      showError('سرور محلی در دسترس نیست.\nلطفاً local helper را اجرا کنید:\ncd local-helper && node server.js');
-      return;
-    }
-  } catch (_) {}
-
   el.recModeLabel.textContent = currentMode === 'notes' ? 'یادداشت' : 'جلسه';
   showState('recording');
   startTimer();
@@ -762,8 +704,7 @@ el.btnStart.addEventListener('click', async () => {
 el.btnStop.addEventListener('click', () => {
   stopTimer();
   showState('processing');
-  setProcessingStep('uploading');
-  el.procMsg.textContent = 'در حال ذخیره‌سازی ضبط…';
+  setProcessingStep('saving');
 
   chrome.runtime.sendMessage({ type: 'STOP_RECORDING' }, async response => {
     if (chrome.runtime.lastError || !response?.success) {
@@ -772,7 +713,7 @@ el.btnStop.addEventListener('click', () => {
       showError(msg);
       return;
     }
-    // Offscreen doc uploaded directly to server — recording is already saved
+    // Offscreen doc already wrote the recording to IndexedDB
     await clearSession();
     showState('idle');
     await loadRecordingsList();
@@ -830,8 +771,7 @@ async function resetToIdle() {
   stopPolling();
   stopTimer();
   currentMOM = null;
-  currentProcessingId   = null;
-  currentProcessingPort = null;
+  currentProcessingId = null;
   await clearSession();
   showState('idle');
   loadRecordingsList();
@@ -879,11 +819,9 @@ async function init() {
   }
 
   if (saved.popupState === 'processing' && saved.recordingId) {
-    currentProcessingId   = saved.recordingId;
-    const { helperPort }  = await loadSettings();
-    currentProcessingPort = helperPort || 3456;
+    currentProcessingId = saved.recordingId;
     showState('processing');
-    setProcessingStep('processing');
+    setProcessingStep('transcribing');
     startPolling(saved.recordingId);
     return;
   }

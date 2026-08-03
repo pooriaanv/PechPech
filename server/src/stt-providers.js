@@ -1,10 +1,18 @@
 'use strict';
 
+// Combines an optional caller-provided AbortSignal (wired to the /cancel
+// endpoint) with an internal timeout, so either one can abort the fetch.
+function withTimeout(signal, timeoutMs) {
+  const signals = [AbortSignal.timeout(timeoutMs)];
+  if (signal) signals.push(signal);
+  return AbortSignal.any(signals);
+}
+
 // ── Shared Whisper-compatible Call ────────────────────────────────
 // Used by both the Custom and OpenAI adapters below — they only differ
 // in which base URL is used.
 
-async function callWhisperEndpoint({ baseUrl, apiKey, model, audioBuffer, audioMimeType }) {
+async function callWhisperEndpoint({ baseUrl, apiKey, model, audioBuffer, audioMimeType, signal }) {
   const endpoint = `${baseUrl}/audio/transcriptions`;
   console.log(`[stt] Sending audio to ${endpoint} (${audioBuffer.length} bytes), model="${model}"`);
 
@@ -26,11 +34,11 @@ async function callWhisperEndpoint({ baseUrl, apiKey, model, audioBuffer, audioM
       method:  'POST',
       headers,
       body:    form,
-      signal:  AbortSignal.timeout(120_000),
+      signal:  withTimeout(signal, 300_000),
     });
   } catch (err) {
     if (err.name === 'AbortError' || err.name === 'TimeoutError') {
-      throw new Error('STT endpoint timed out (>2 min). Is the Whisper server running?');
+      throw new Error('STT endpoint timed out (>5 min) or was cancelled. Is the Whisper server running?');
     }
     throw new Error(`STT endpoint unreachable: ${err.message}. Is the server at ${baseUrl} running?`);
   }
@@ -65,8 +73,8 @@ function createCustomSTTAdapter({ sttUrl, sttKey, sttModel }) {
   const model   = sttModel || 'whisper-1';
 
   return {
-    transcribe({ audioBuffer, audioMimeType }) {
-      return callWhisperEndpoint({ baseUrl, apiKey, model, audioBuffer, audioMimeType });
+    transcribe({ audioBuffer, audioMimeType, signal }) {
+      return callWhisperEndpoint({ baseUrl, apiKey, model, audioBuffer, audioMimeType, signal });
     },
   };
 }
@@ -83,13 +91,14 @@ function createOpenAISTTAdapter({ sttKey, sttModel }) {
   const model = sttModel || 'whisper-1';
 
   return {
-    transcribe({ audioBuffer, audioMimeType }) {
+    transcribe({ audioBuffer, audioMimeType, signal }) {
       return callWhisperEndpoint({
         baseUrl: 'https://api.openai.com/v1',
         apiKey:  sttKey,
         model,
         audioBuffer,
         audioMimeType,
+        signal,
       });
     },
   };
@@ -110,7 +119,7 @@ function createGeminiSTTAdapter({ sttKey, sttModel }) {
   }
 
   return {
-    async transcribe({ audioBuffer, audioMimeType }) {
+    async transcribe({ audioBuffer, audioMimeType, signal }) {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
       const mime     = audioMimeType || 'audio/ogg';
 
@@ -140,11 +149,11 @@ function createGeminiSTTAdapter({ sttKey, sttModel }) {
               ],
             }],
           }),
-          signal: AbortSignal.timeout(120_000),
+          signal: withTimeout(signal, 300_000),
         });
       } catch (err) {
         if (err.name === 'AbortError' || err.name === 'TimeoutError') {
-          throw new Error('Gemini STT timed out (>2 min).');
+          throw new Error('Gemini STT timed out (>5 min) or was cancelled.');
         }
         throw new Error(`Gemini STT unreachable: ${err.message}`);
       }

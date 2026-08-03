@@ -2,19 +2,34 @@
 
 const { spawn } = require('child_process');
 
+// Combines an optional caller-provided AbortSignal (wired to the /cancel
+// endpoint) with an internal timeout, so either one can abort the fetch.
+function withTimeout(signal, timeoutMs) {
+  const signals = [AbortSignal.timeout(timeoutMs)];
+  if (signal) signals.push(signal);
+  return AbortSignal.any(signals);
+}
+
 // ── CLI Adapter ───────────────────────────────────────────────────
 // Invokes a local LLM CLI tool via child_process.spawn.
-// All CLIs receive the prompt as the first argument.
+// Claude pipes the prompt via stdin to avoid OS arg-length limits.
+// All other CLIs receive the prompt as the first argument.
 
 function createCLIAdapter({ llmCli, llmCommand }) {
   const cli = llmCli || 'custom';
 
   return {
-    invoke(promptText) {
+    invoke(promptText, { signal } = {}) {
       return new Promise((resolve, reject) => {
         let cmd, args, useStdin;
 
         switch (cli) {
+          case 'claude':
+            cmd      = 'claude';
+            args     = ['-p'];
+            useStdin = true;
+            break;
+
           case 'codex':
             cmd      = 'codex';
             args     = [promptText];
@@ -41,13 +56,16 @@ function createCLIAdapter({ llmCli, llmCommand }) {
           }
 
           default:
-            reject(new Error(`Unknown LLM CLI: "${cli}". Valid values: codex, gemini, custom.`));
+            reject(new Error(`Unknown LLM CLI: "${cli}". Valid values: claude, codex, gemini, custom.`));
             return;
         }
 
         console.log(`[llm] CLI: ${cmd} (prompt ${promptText.length} chars)`);
 
-        const proc = spawn(cmd, args, { shell: false, env: { ...process.env } });
+        // Node's spawn() has built-in abort support: passing `signal` here
+        // auto-kills the process (and emits an 'error' event) when aborted,
+        // no manual proc.kill() wiring needed.
+        const proc = spawn(cmd, args, { shell: false, env: { ...process.env }, signal });
 
         let stdout = '';
         let stderr = '';
@@ -68,8 +86,13 @@ function createCLIAdapter({ llmCli, llmCommand }) {
 
         proc.on('error', err => {
           clearTimeout(timeout);
-          if (err.code === 'ENOENT') {
-            reject(new Error(`CLI not found: "${cmd}". Is it installed and on PATH?`));
+          if (err.name === 'AbortError') {
+            reject(new Error('لغو شد توسط کاربر'));
+          } else if (err.code === 'ENOENT') {
+            reject(new Error(
+              `CLI not found: "${cmd}". Is it installed and on PATH?\n` +
+              `  Claude Code: npm install -g @anthropic-ai/claude-code && claude login`
+            ));
           } else {
             reject(new Error(`CLI spawn error: ${err.message}`));
           }
@@ -113,7 +136,7 @@ function createAPIAdapter({ llmApiUrl, llmApiKey, llmApiModel }) {
   }
 
   return {
-    async invoke(promptText) {
+    async invoke(promptText, { signal } = {}) {
       console.log(`[llm] API: ${baseUrl}/chat/completions model=${model} (prompt ${promptText.length} chars)`);
 
       let response;
@@ -128,11 +151,11 @@ function createAPIAdapter({ llmApiUrl, llmApiKey, llmApiModel }) {
             model,
             messages: [{ role: 'user', content: promptText }],
           }),
-          signal: AbortSignal.timeout(900_000),
+          signal: withTimeout(signal, 900_000),
         });
       } catch (err) {
         if (err.name === 'AbortError' || err.name === 'TimeoutError') {
-          throw new Error(`LLM API timed out after 15 minutes. URL: ${baseUrl}`);
+          throw new Error(`LLM API timed out after 15 minutes or was cancelled. URL: ${baseUrl}`);
         }
         throw new Error(`LLM API unreachable: ${err.message}`);
       }
@@ -188,7 +211,7 @@ function createGeminiAdapter({ llmApiKey, llmApiModel }) {
   }
 
   return {
-    async invoke(promptText) {
+    async invoke(promptText, { signal } = {}) {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
       console.log(`[llm] Gemini: ${model} (prompt ${promptText.length} chars)`);
 
@@ -203,11 +226,11 @@ function createGeminiAdapter({ llmApiKey, llmApiModel }) {
           body: JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: promptText }] }],
           }),
-          signal: AbortSignal.timeout(900_000),
+          signal: withTimeout(signal, 900_000),
         });
       } catch (err) {
         if (err.name === 'AbortError' || err.name === 'TimeoutError') {
-          throw new Error(`Gemini API timed out after 15 minutes. Model: ${model}`);
+          throw new Error(`Gemini API timed out after 15 minutes or was cancelled. Model: ${model}`);
         }
         throw new Error(`Gemini API unreachable: ${err.message}`);
       }

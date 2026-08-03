@@ -56,9 +56,8 @@ node launcher/index.js
 
 ```env
 MODE=docker
-LLM_CLI=claude        # claude | api | custom
+LLM_CLI=claude        # openai | gemini-api | api | claude | custom
 PECHPECH_PORT=3456
-CLAUDE_DIR=/Users/your-username/.claude   # only needed for Claude
 ```
 
 #### Step 2 — Build and start
@@ -73,6 +72,10 @@ docker compose up -d
 ```bash
 docker exec -it pechpech-helper claude login
 ```
+
+The login lives inside the container's own filesystem only — it is not mounted from
+or shared with your host, so you'll need to run this again if the container is
+ever removed or rebuilt.
 
 #### Step 4 — Verify
 
@@ -127,7 +130,7 @@ Settings → **STT Base URL:** `https://api.groq.com/openai/v1` · **STT API Key
 
 ## LLM Setup
 
-Three options — choose one during `install.sh` or change it anytime in Settings.
+Several options — choose one during `install.sh` or change it anytime in Settings.
 
 ### Claude Code (recommended — uses your existing subscription)
 
@@ -169,7 +172,7 @@ Click the PechPech icon → ⚙:
 | STT Base URL | `http://localhost:8080/v1` | Whisper server address |
 | STT API Key | *(blank)* | Leave blank for local servers |
 | STT Model | `whisper-1` | Model name sent to the STT endpoint |
-| LLM Type | `claude` | `claude` / `api` / `custom` |
+| LLM Type | `openai` | `openai` / `gemini-api` / `api` / `claude` / `custom` |
 | API Base URL | *(blank)* | Only shown for `api` type |
 | API Key | *(blank)* | Only shown for `api` type |
 | Model | *(blank)* | Only shown for `api` type; default `gpt-4o` |
@@ -257,8 +260,7 @@ Infrastructure-only — controls how the launcher starts the server:
 ```
 MODE=native          # or: docker
 PECHPECH_PORT=3456
-LLM_CLI=claude       # baked into Docker image at build time
-CLAUDE_DIR=~/.claude # Docker volume mount for Claude credentials
+LLM_CLI=claude       # baked into Docker image at build time (only matters if using claude)
 ```
 
 STT/LLM credentials do **not** go in `.env` — they go in `config.json`.

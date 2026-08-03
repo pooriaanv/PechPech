@@ -127,6 +127,24 @@ class RecordingStore {
 const store    = new RecordingStore();
 const pipeline = createPipeline({ store, createProvider });
 
+// Tracks in-flight processing/correction jobs (id → AbortController) so
+// POST /recordings/:id/cancel can actually interrupt a live request.
+const activeJobs = new Map();
+
+// Startup recovery: a record can only be left stuck mid-processing here if
+// this Node process itself crashed or was restarted while it was running
+// (unlike the browser-extension variant, there's no service-worker-death
+// risk for a persistent process) — so a one-time scan at boot is sufficient,
+// no periodic watchdog needed.
+for (const rec of store.list()) {
+  if (['processing', 'transcribing', 'summarizing'].includes(rec.status)) {
+    store.update(rec.id, { status: 'error', error: 'با ری‌استارت سرور قطع شد.' });
+  }
+  if (rec.correction_status === 'correcting') {
+    store.update(rec.id, { correction_status: 'error', correction_error: 'با ری‌استارت سرور قطع شد.' });
+  }
+}
+
 // ── Express App ───────────────────────────────────────────────────
 
 const app    = express();
@@ -265,7 +283,27 @@ app.post('/recordings/:id/process', (req, res) => {
   store.update(rec.id, { status: 'processing', error: null });
   res.json({ id: rec.id, status: 'processing' });
 
-  pipeline.run(rec.id, loadServerConfig(), mode);
+  const controller = new AbortController();
+  activeJobs.set(rec.id, controller);
+  pipeline.run(rec.id, loadServerConfig(), mode, controller.signal)
+    .finally(() => activeJobs.delete(rec.id));
+});
+
+// ── POST /recordings/:id/cancel ──────────────────────────────────
+app.post('/recordings/:id/cancel', (req, res) => {
+  const rec = store.get(req.params.id);
+  if (!rec) return res.status(404).json({ error: 'Recording not found.' });
+
+  activeJobs.get(rec.id)?.abort();
+  activeJobs.delete(rec.id);
+
+  if (rec.correction_status === 'correcting') {
+    store.update(rec.id, { correction_status: 'error', correction_error: 'لغو شد توسط کاربر' });
+  } else {
+    store.update(rec.id, { status: 'error', error: 'لغو شد توسط کاربر' });
+  }
+
+  res.json({ ok: true });
 });
 
 // ── POST /recordings/:id/correct ─────────────────────────────────
@@ -282,7 +320,11 @@ app.post('/recordings/:id/correct', (req, res) => {
   }
 
   res.json({ id: rec.id, correction_status: 'correcting' });
-  pipeline.correct(rec.id, loadServerConfig());
+
+  const controller = new AbortController();
+  activeJobs.set(rec.id, controller);
+  pipeline.correct(rec.id, loadServerConfig(), controller.signal)
+    .finally(() => activeJobs.delete(rec.id));
 });
 
 // ── 404 / Error Handlers ──────────────────────────────────────────

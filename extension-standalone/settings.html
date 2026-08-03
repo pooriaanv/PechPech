@@ -103,7 +103,6 @@
     input[type="text"],
     input[type="url"],
     input[type="password"],
-    input[type="number"],
     select {
       width: 100%;
       padding: 9px 12px;
@@ -123,25 +122,10 @@
       box-shadow: 0 0 0 3px rgba(26, 86, 219, .15);
     }
 
-    /* Server unreachable banner */
-    #server-error {
-      display: none;
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      border-radius: var(--radius-sm);
-      padding: 12px 14px;
-      font-size: 13px;
-      color: #dc2626;
-      margin-bottom: 20px;
-    }
-    #server-error.visible { display: block; }
-
-    /* Custom command / API fields — hidden by default */
-    #custom-command-field,
+    /* API fields — hidden by default */
     #api-fields {
       display: none;
     }
-    #custom-command-field.visible,
     #api-fields.visible {
       display: block;
     }
@@ -202,26 +186,6 @@
       margin-top: 12px;
     }
     .toast.visible { display: flex; }
-
-    /* Info box */
-    .info-box {
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      border-radius: var(--radius-sm);
-      padding: 12px 14px;
-      font-size: 13px;
-      color: #1e40af;
-      margin-top: 0;
-    }
-
-    .info-box code {
-      font-family: monospace;
-      background: rgba(255,255,255,.6);
-      padding: 1px 5px;
-      border-radius: 3px;
-      direction: ltr;
-      display: inline-block;
-    }
 
     /* Divider */
     .divider {
@@ -300,14 +264,11 @@
 </head>
 <body>
   <div class="page">
-    <!-- Server error banner -->
-    <div id="server-error"></div>
-
     <!-- Header -->
     <div class="page-header">
       <div>
         <h1>🎙️ PechPech — تنظیمات</h1>
-        <p>تنظیمات در این دستگاه ذخیره می‌شوند و هرگز از آن خارج نمی‌شوند.</p>
+        <p>تنظیمات فقط در این دستگاه ذخیره می‌شوند و هرگز از آن خارج نمی‌شوند. بدون سرور — پردازش مستقیم از افزونه انجام می‌شود.</p>
       </div>
     </div>
 
@@ -368,18 +329,8 @@
           <option value="openai">OpenAI (ChatGPT)</option>
           <option value="gemini-api">Google Gemini</option>
           <option value="api">Custom API (OpenAI-compatible)</option>
-          <option value="claude">Claude Code (claude)</option>
-          <option value="custom">Custom CLI</option>
         </select>
         <p class="field-hint">برای OpenAI و Gemini فقط کلید API و نام مدل لازم است.</p>
-      </div>
-
-      <div class="field" id="custom-command-field">
-        <label for="llm-command">دستور سفارشی CLI</label>
-        <input type="text" id="llm-command" placeholder="my-llm-cli --flag" />
-        <p class="field-hint">
-          دستور اجرا برای CLI سفارشی. متن prompt به عنوان اولین آرگومان ارسال می‌شود.
-        </p>
       </div>
 
       <div id="api-fields">
@@ -406,26 +357,6 @@
           <input type="text" id="llm-api-model" placeholder="gpt-4o" />
           <p class="field-hint" id="llm-api-model-hint">پیش‌فرض: <code>gpt-4o</code></p>
         </div>
-      </div>
-    </div>
-
-    <!-- Helper Config -->
-    <div class="card">
-      <div class="card-title">سرور محلی (Local Helper)</div>
-
-      <div class="field">
-        <label for="helper-port">پورت</label>
-        <input type="number" id="helper-port" value="3456" min="1024" max="65535" />
-        <p class="field-hint">پورتی که <code>server.js</code> روی آن اجرا می‌شود. پیش‌فرض: ۳۴۵۶</p>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="info-box">
-        برای اجرای Local Helper:<br/>
-        <code>node server/src/server.js</code> ساده و در پیش‌زمینه<br/>
-        <code>node launcher/index.js</code> با نوتیفیکیشن و راه‌اندازی خودکار<br/>
-        یا با Docker: <code>docker compose up -d</code>
       </div>
     </div>
 
@@ -476,6 +407,6 @@
     </div>
   </div>
 
-  <script src="settings.js"></script>
+  <script type="module" src="settings.js"></script>
 </body>
 </html>

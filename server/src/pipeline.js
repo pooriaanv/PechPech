@@ -152,7 +152,7 @@ function parseNotesOutput(text) {
 
 function createPipeline({ store, createProvider }) {
   return {
-    async run(id, config, mode = 'mom') {
+    async run(id, config, mode = 'mom', signal) {
       try {
         const rec = store.get(id);
         if (!rec) throw new Error(`Recording not found: ${id}`);
@@ -163,7 +163,7 @@ function createPipeline({ store, createProvider }) {
           console.log(`[pipeline] ${id} transcript already exists — skipping STT`);
           store.update(id, { status: 'summarizing' });
         } else {
-          store.update(id, { status: 'transcribing' });
+          store.update(id, { status: 'transcribing', processingStartedAt: Date.now() });
 
           const audioPath   = path.join(store.audioDir, rec.filename);
           const audioBuffer = fs.readFileSync(audioPath);
@@ -179,6 +179,7 @@ function createPipeline({ store, createProvider }) {
           transcript = await sttProvider.transcribe({
             audioBuffer:   cleanedBuffer,
             audioMimeType: cleanedMimeType,
+            signal,
           });
           store.update(id, { transcript, status: 'summarizing' });
         }
@@ -186,11 +187,11 @@ function createPipeline({ store, createProvider }) {
         const provider = createProvider(config);
 
         if (mode === 'notes') {
-          const llmOutput = await provider.invoke(buildNotesPrompt(transcript));
+          const llmOutput = await provider.invoke(buildNotesPrompt(transcript), { signal });
           const notes     = parseNotesOutput(llmOutput);
           store.update(id, { status: 'done', mode: 'notes', notes });
         } else {
-          const llmOutput = await provider.invoke(buildMOMPrompt(transcript));
+          const llmOutput = await provider.invoke(buildMOMPrompt(transcript), { signal });
           const mom       = parseMOMOutput(llmOutput);
           store.update(id, {
             status:       'done',
@@ -209,7 +210,7 @@ function createPipeline({ store, createProvider }) {
       }
     },
 
-    async correct(id, config) {
+    async correct(id, config, signal) {
       try {
         const rec = store.get(id);
         if (!rec?.transcript) {
@@ -220,10 +221,14 @@ function createPipeline({ store, createProvider }) {
           return;
         }
 
-        store.update(id, { correction_status: 'correcting', correction_error: null });
+        store.update(id, {
+          correction_status:   'correcting',
+          correction_error:    null,
+          processingStartedAt: Date.now(),
+        });
 
         const provider  = createProvider(config);
-        const llmOutput = await provider.invoke(buildCorrectionPrompt(rec.transcript));
+        const llmOutput = await provider.invoke(buildCorrectionPrompt(rec.transcript), { signal });
 
         const match     = llmOutput.match(/##\s*متن اصلاح[^\n]*\n([\s\S]*)/i);
         const corrected = match ? match[1].trim() : llmOutput.trim();

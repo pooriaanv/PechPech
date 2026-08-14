@@ -32,6 +32,9 @@ const CONFIG_DEFAULTS = {
   llmApiUrl:   '',
   llmApiKey:   '',
   llmApiModel: '',
+  promptMom:        '',
+  promptNotes:      '',
+  promptCorrection: '',
 };
 
 async function loadConfig() {
@@ -275,11 +278,11 @@ async function continueProcessing(id, mode, rec, hasTranscript) {
 
     try {
       if (mode === 'notes') {
-        const llmOutput = await llmProvider.invoke(buildNotesPrompt(transcript), { signal: controller.signal });
+        const llmOutput = await llmProvider.invoke(buildNotesPrompt(transcript, config.promptNotes), { signal: controller.signal });
         const notes     = parseNotesOutput(llmOutput);
         await updateRecording(id, { status: 'done', mode: 'notes', notes });
       } else {
-        const llmOutput = await llmProvider.invoke(buildMOMPrompt(transcript), { signal: controller.signal });
+        const llmOutput = await llmProvider.invoke(buildMOMPrompt(transcript, config.promptMom), { signal: controller.signal });
         const mom       = parseMOMOutput(llmOutput);
         await updateRecording(id, {
           status:       'done',
@@ -338,7 +341,7 @@ async function continueCorrection(id, rec) {
 
     let llmOutput;
     try {
-      llmOutput = await llmProvider.invoke(buildCorrectionPrompt(rec.transcript), { signal: controller.signal });
+      llmOutput = await llmProvider.invoke(buildCorrectionPrompt(rec.transcript, config.promptCorrection), { signal: controller.signal });
     } catch (err) {
       console.error(`[background] ${id} STEP=correct (provider=${config.llmCli}) failed:`, err.message, err);
       throw err;

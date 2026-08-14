@@ -79,16 +79,16 @@ Transcript:
 
 // ── Prompt builders ────────────────────────────────────────────────
 
-function buildMOMPrompt(transcript) {
-  return MOM_PROMPT.replace('{{transcript}}', transcript);
+function buildMOMPrompt(transcript, customTemplate) {
+  return (customTemplate || MOM_PROMPT).replace('{{transcript}}', transcript);
 }
 
-function buildNotesPrompt(transcript) {
-  return NOTES_PROMPT.replace('{{transcript}}', transcript);
+function buildNotesPrompt(transcript, customTemplate) {
+  return (customTemplate || NOTES_PROMPT).replace('{{transcript}}', transcript);
 }
 
-function buildCorrectionPrompt(transcript) {
-  return CORRECTION_PROMPT.replace('{{transcript}}', transcript);
+function buildCorrectionPrompt(transcript, customTemplate) {
+  return (customTemplate || CORRECTION_PROMPT).replace('{{transcript}}', transcript);
 }
 
 // ── Output parsers (ported verbatim from pipeline.js) ─────────────
@@ -140,6 +140,9 @@ function parseCorrectionOutput(text) {
 }
 
 export {
+  MOM_PROMPT,
+  NOTES_PROMPT,
+  CORRECTION_PROMPT,
   buildMOMPrompt,
   buildNotesPrompt,
   buildCorrectionPrompt,

@@ -4,6 +4,8 @@
 // STT/LLM config lives directly in chrome.storage.local. The LLM CLI
 // option is dropped entirely (child_process cannot run in a browser).
 
+import { MOM_PROMPT, NOTES_PROMPT, CORRECTION_PROMPT } from './prompts.js';
+
 // ── DOM Refs ──────────────────────────────────────────────────────
 const sttProviderEl = document.getElementById('stt-provider');
 const sttUrlEl      = document.getElementById('stt-url');
@@ -24,6 +26,7 @@ const customList    = document.getElementById('custom-domains-list');
 const CONFIG_KEYS = [
   'sttProvider', 'sttUrl', 'sttKey', 'sttModel',
   'llmCli', 'llmApiUrl', 'llmApiKey', 'llmApiModel',
+  'promptMom', 'promptNotes', 'promptCorrection',
 ];
 
 const CONFIG_DEFAULTS = {
@@ -35,6 +38,16 @@ const CONFIG_DEFAULTS = {
   llmApiUrl:   '',
   llmApiKey:   '',
   llmApiModel: '',
+  promptMom:        '',
+  promptNotes:      '',
+  promptCorrection: '',
+};
+
+// Maps each accordion's data-prompt key to its textarea + default text.
+const PROMPT_FIELDS = {
+  mom:        { el: document.getElementById('prompt-mom'),        defaultText: MOM_PROMPT },
+  notes:      { el: document.getElementById('prompt-notes'),      defaultText: NOTES_PROMPT },
+  correction: { el: document.getElementById('prompt-correction'), defaultText: CORRECTION_PROMPT },
 };
 
 // ── Custom Meeting Domains ────────────────────────────────────────
@@ -167,6 +180,24 @@ function updateSTTFields() {
 }
 sttProviderEl.addEventListener('change', updateSTTFields);
 
+// ── Prompt accordion ──────────────────────────────────────────────
+
+document.querySelectorAll('.prompt-header').forEach(header => {
+  const body    = header.nextElementSibling;
+  const chevron = header.querySelector('.prompt-chevron');
+  header.addEventListener('click', () => {
+    body.classList.toggle('hidden');
+    chevron.classList.toggle('open');
+  });
+});
+
+document.querySelectorAll('[data-reset-prompt]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const key = btn.dataset.resetPrompt;
+    PROMPT_FIELDS[key].el.value = PROMPT_FIELDS[key].defaultText;
+  });
+});
+
 // ── Load settings ─────────────────────────────────────────────────
 async function loadSettings() {
   const { customMeetingDomains } = await new Promise(r =>
@@ -187,11 +218,21 @@ async function loadSettings() {
   llmApiKeyEl.value   = cfg.llmApiKey;
   llmApiModelEl.value = cfg.llmApiModel;
 
+  PROMPT_FIELDS.mom.el.value        = cfg.promptMom        || PROMPT_FIELDS.mom.defaultText;
+  PROMPT_FIELDS.notes.el.value      = cfg.promptNotes      || PROMPT_FIELDS.notes.defaultText;
+  PROMPT_FIELDS.correction.el.value = cfg.promptCorrection || PROMPT_FIELDS.correction.defaultText;
+
   updateSTTFields();
   updateLLMFields();
 }
 
 // ── Save settings ─────────────────────────────────────────────────
+function savedPromptValue(key) {
+  const { el, defaultText } = PROMPT_FIELDS[key];
+  const value = el.value.trim();
+  return value === defaultText.trim() ? '' : value;
+}
+
 async function saveSettings() {
   const cfg = {
     sttProvider: sttProviderEl.value,
@@ -202,6 +243,9 @@ async function saveSettings() {
     llmApiUrl:   llmApiUrlEl.value.trim(),
     llmApiKey:   llmApiKeyEl.value.trim(),
     llmApiModel: llmApiModelEl.value.trim(),
+    promptMom:        savedPromptValue('mom'),
+    promptNotes:      savedPromptValue('notes'),
+    promptCorrection: savedPromptValue('correction'),
   };
 
   await new Promise(r => chrome.storage.local.set({

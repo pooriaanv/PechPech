@@ -252,6 +252,63 @@
       font-size: 13px;
     }
 
+    /* Prompt accordion */
+    .prompt-accordion {
+      border-bottom: 1px solid var(--color-border);
+    }
+    .prompt-accordion:last-child {
+      border-bottom: none;
+    }
+    .prompt-header {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      background: none;
+      border: none;
+      padding: 12px 0;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text);
+      text-align: right;
+    }
+    .prompt-chevron {
+      flex-shrink: 0;
+      transition: transform .15s;
+      color: var(--color-text-muted);
+    }
+    .prompt-chevron.open {
+      transform: rotate(180deg);
+    }
+    .prompt-body {
+      padding-bottom: 16px;
+    }
+    .prompt-body textarea {
+      width: 100%;
+      min-height: 200px;
+      padding: 9px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-family: 'Consolas', 'Menlo', monospace;
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: var(--color-text);
+      background: var(--color-bg);
+      direction: ltr;
+      text-align: left;
+      resize: vertical;
+      outline: none;
+    }
+    .prompt-body textarea:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(26, 86, 219, .15);
+    }
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
     /* Get API Key link */
     .api-key-link {
       display: inline-flex;
@@ -362,6 +419,65 @@
           <label for="llm-api-model">نام مدل</label>
           <input type="text" id="llm-api-model" placeholder="gpt-4o" />
           <p class="field-hint" id="llm-api-model-hint">پیش‌فرض: <code>gpt-4o</code></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prompts -->
+    <div class="card">
+      <div class="card-title">پرامپت‌ها</div>
+
+      <div class="prompt-accordion">
+        <button type="button" class="prompt-header" data-prompt="mom">
+          <span>پرامپت خلاصه جلسه (MOM)</span>
+          <svg class="prompt-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div class="prompt-body hidden">
+          <p class="field-hint">
+            خطوط شروع‌شده با <code>##</code> و متن <code>{{transcript}}</code> را تغییر ندهید — در غیر این صورت خروجی درست پردازش نمی‌شود.
+          </p>
+          <textarea id="prompt-mom" rows="10" dir="ltr" spellcheck="false"></textarea>
+          <div class="btn-row" style="margin-top:8px">
+            <button type="button" class="btn btn-outline btn-sm" data-reset-prompt="mom">بازنشانی به پیش‌فرض</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="prompt-accordion">
+        <button type="button" class="prompt-header" data-prompt="notes">
+          <span>پرامپت یادداشت‌ها</span>
+          <svg class="prompt-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div class="prompt-body hidden">
+          <p class="field-hint">
+            خطوط شروع‌شده با <code>##</code> و متن <code>{{transcript}}</code> را تغییر ندهید — در غیر این صورت خروجی درست پردازش نمی‌شود.
+          </p>
+          <textarea id="prompt-notes" rows="10" dir="ltr" spellcheck="false"></textarea>
+          <div class="btn-row" style="margin-top:8px">
+            <button type="button" class="btn btn-outline btn-sm" data-reset-prompt="notes">بازنشانی به پیش‌فرض</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="prompt-accordion">
+        <button type="button" class="prompt-header" data-prompt="correction">
+          <span>پرامپت اصلاح متن و تشخیص گوینده‌ها</span>
+          <svg class="prompt-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div class="prompt-body hidden">
+          <p class="field-hint">
+            خطوط شروع‌شده با <code>##</code> و متن <code>{{transcript}}</code> را تغییر ندهید — در غیر این صورت خروجی درست پردازش نمی‌شود.
+          </p>
+          <textarea id="prompt-correction" rows="10" dir="ltr" spellcheck="false"></textarea>
+          <div class="btn-row" style="margin-top:8px">
+            <button type="button" class="btn btn-outline btn-sm" data-reset-prompt="correction">بازنشانی به پیش‌فرض</button>
+          </div>
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>تنظیمات — PechPech</title>
+  <link rel="stylesheet" href="fonts.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -20,7 +21,7 @@
       --color-success-border:#bbf7d0;
       --radius-sm:          6px;
       --radius-md:          10px;
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
     }
 
     body {
@@ -29,6 +30,11 @@
       font-size: 14px;
       line-height: 1.6;
       min-height: 100vh;
+    }
+
+    /* Form controls don't inherit font-family from :root/body by default */
+    button, input, select, textarea {
+      font-family: inherit;
     }
 
     .page {

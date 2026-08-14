@@ -53,6 +53,8 @@ The system has two cooperating components, because Chrome extensions cannot invo
 
 **Run modes:** the backend server runs either as a native Node.js process or inside a Docker container. The launcher (`launcher/index.js`) abstracts this — it reads `.env` and handles both modes transparently.
 
+**No-server variant:** `extension-standalone/` collapses both boxes above into a single MV3 extension with no backend at all — STT/LLM calls go straight from the service worker to the provider, and recordings live in IndexedDB instead of on disk. See §15.
+
 ## 4. Component 1: Chrome Extension
 
 ### Responsibilities
@@ -267,6 +269,7 @@ PechPech/
 │   ├── settings.html/js        — Settings page (reads/writes via GET/POST /config)
 │   ├── onboarding.html/js      — 5-step setup wizard (opens on install/reload)
 │   └── icons/
+├── extension-standalone/       — No-server variant, see §15
 ├── launcher/
 │   ├── index.js                — Start, stop, status, auto-start on login
 │   └── onboarding/
@@ -379,3 +382,94 @@ The `{{transcript}}` placeholder in `prompts.yaml` is replaced with the raw tran
 - Tab audio capture survives tab-switch: needs testing per browser version.
 - Whisper installation via `install.sh` — currently out of scope; users set up their own STT server.
 - Onboarding on `reason === 'update'`: consider restricting to `reason === 'install'` once the tool is stable.
+
+## 15. Standalone Extension Variant (No-Server Mode)
+
+**Location:** `extension-standalone/`. A separate MV3 manifest — a distinct extension id from `extension/` when both are loaded, so install one or the other rather than both (they'd otherwise double up meeting-detection badges/notifications).
+
+Components 1+2 require the user to keep a local server process (or Docker container) running. This variant needs **no server at all** — everything Components 1+2 split across "extension ↔ server" runs entirely inside the extension:
+
+| Concern | Server-based (`extension/` + `server/`) | Standalone (`extension-standalone/`) |
+|---|---|---|
+| Recording storage | POSTed to server, saved to `data/` on disk | `store.js` — IndexedDB, audio kept as a `Blob` field on the record |
+| STT + LLM calls | Server-side, can shell out to CLI tools | `providers.js` — `fetch()` directly from the service worker; **no CLI adapter** (child_process cannot run in a browser) |
+| Processing orchestration | `pipeline.js` on the server, triggered via `POST /recordings/:id/process` | `background.js`, triggered via a `PROCESS_RECORDING` runtime message |
+| Config storage | `server/src/config.json` on disk | `chrome.storage.local` directly (see key table below) |
+| Prompts | `server/src/prompts.yaml`, edited by hand | `prompts.js` (verbatim port) + **editable per-user overrides** in Settings (see below) |
+
+### STT providers (`providers.js`)
+
+| Provider | Notes |
+|---|---|
+| `custom` (default) | Same Whisper-compatible endpoint shape as the server variant — points at a local server the user runs themselves (e.g. `http://localhost:8080/v1`) |
+| `openai` | OpenAI Whisper API, requires `sttKey` |
+| `gemini` | Gemini `generateContent` with inline audio (base64) — 19 MB request-size ceiling, throws a clear error above that instead of silently failing |
+
+### LLM providers (`providers.js`)
+
+| Provider | Notes |
+|---|---|
+| `openai` (default) | OpenAI Chat Completions, default model `gpt-4o` |
+| `gemini-api` | Gemini `generateContent`, default model `gemini-3.6-flash` |
+| `api` | Any OpenAI-compatible `/chat/completions` endpoint (custom URL) |
+
+No CLI-based LLM option — the `llmCli: 'claude'`/`'custom'` CLI adapters from the server variant don't exist here; `createLLMProvider()` throws for any unrecognized `llmCli` value.
+
+### Processing modes: MOM vs Notes
+
+The popup's mode toggle (`جلسه` / `یادداشت`) selects between two output shapes, both handled by the same `continueProcessing()` in `background.js`:
+- **`mom`** (default) — the usual خلاصه/تصمیمات/اقدامات three-section minutes, via `buildMOMPrompt`/`parseMOMOutput`.
+- **`notes`** — for one person thinking aloud rather than a multi-party meeting; extracts each distinct thought as its own bulleted line under `## یادداشت‌ها`, via `buildNotesPrompt`/`parseNotesOutput`.
+
+### Editable prompts
+
+Settings → **پرامپت‌ها** exposes the three prompt templates (`prompts.js`'s `MOM_PROMPT`, `NOTES_PROMPT`, `CORRECTION_PROMPT`) as collapsed, individually-expandable textareas — collapsed by default so the settings page stays scannable despite each prompt being 20–30 lines. Storage keys `promptMom` / `promptNotes` / `promptCorrection` in `chrome.storage.local` are empty-string by default, meaning "use the built-in default"; `prompts.js`'s three `build*Prompt(transcript, customTemplate)` functions fall back to the default when the override is falsy. This keeps future default-prompt updates flowing through to any user who never customized a given prompt. The `##` section headings are load-bearing (parsed by `parseMOMOutput`/`parseNotesOutput`/`parseCorrectionOutput`) — the settings UI warns against editing them but does not enforce it.
+
+### chrome.storage.local keys
+
+| Key | Default | Description |
+|---|---|---|
+| `sttProvider` | `custom` | `custom` / `openai` / `gemini` |
+| `sttUrl` | `http://localhost:8080/v1` | Only used for `custom` |
+| `sttKey` | `""` | Required for `openai`/`gemini`, optional for `custom` |
+| `sttModel` | `whisper-1` | |
+| `llmCli` | `openai` | `openai` / `gemini-api` / `api` (name kept consistent with the server variant's `llmCli` key, though "CLI" is a misnomer here — no CLI option exists) |
+| `llmApiUrl` | `""` | Only used for `api` |
+| `llmApiKey` | `""` | |
+| `llmApiModel` | `""` | Defaults to `gpt-4o` / `gemini-3.6-flash` per provider |
+| `promptMom` / `promptNotes` / `promptCorrection` | `""` | Empty = use built-in default; see "Editable prompts" above |
+| `customMeetingDomains` | `[]` | Extra domains for meeting-URL detection, beyond the built-in Meet/Zoom/Teams/Skype patterns |
+
+### Stuck-job watchdog
+
+MV3 service workers can be killed by Chrome without warning, including mid-`fetch()` — this destroys the entire execution context, so no `catch` block runs to record the failure, and a recording can be left stuck in `transcribing`/`summarizing`/`correcting` forever. Fixed with `chrome.alarms` (alarms can wake an already-terminated service worker, unlike a timer): a `processing-watchdog` alarm fires every minute and flags any recording that's been in a processing state for more than 25 minutes (comfortably above the 5 min STT + 15 min LLM worst-case sequential timeout) as `error`, with a Persian message asking the user to retry. Each processing/correction job also has a **Cancel** button in the popup (`CANCEL_PROCESSING` message), which aborts the in-flight `fetch` via `AbortController` if the same service-worker instance is still alive, and unconditionally resets the record's status either way.
+
+### Fonts
+
+All extension pages (popup, settings, onboarding, permission) load Vazirmatn from a **self-hosted** `fonts.css` + `fonts/*.woff2` (two variable-font files — arabic-script and latin subsets, covering all weights) rather than Google Fonts' CDN, since remote-stylesheet loading proved unreliable inside the packaged extension context. The identical `fonts.css`/`fonts/` setup also exists in `extension/` for the same reason.
+
+### Meeting URL detection + notifications
+
+Implemented in `background.js` via `chrome.tabs.onUpdated`: matches a built-in pattern list (Meet, Zoom, Teams, Skype) plus any `customMeetingDomains`, sets a toolbar badge, and fires a `chrome.notifications` prompt (throttled to once per 30 min per tab) suggesting the user start recording. Clicking the notification opens the popup via `chrome.action.openPopup()`.
+
+### Project structure
+
+```
+extension-standalone/
+├── manifest.json
+├── background.js      — Service worker: recording orchestration, STT+LLM processing,
+│                         watchdog, meeting detection (no server to delegate to)
+├── store.js            — IndexedDB-backed recording store (replaces server's disk store)
+├── providers.js         — STT + LLM provider factories, fetch()-based (replaces
+│                         server/src/{stt,llm}-providers.js; no CLI adapter)
+├── prompts.js           — Prompt templates + builders + output parsers (ported from
+│                         server/src/prompts.yaml + pipeline.js's parsers)
+├── offscreen.html/js    — Audio capture and mixing (same role as extension/'s)
+├── popup.html/css/js    — Recording UI + mode toggle (MOM / Notes)
+├── settings.html/js     — Settings page: STT/LLM provider config + editable prompts
+│                         (writes directly to chrome.storage.local — no server API)
+├── onboarding.html/js   — Setup wizard
+├── permission.html/js   — Standalone mic-permission helper page
+├── fonts.css, fonts/    — Self-hosted Vazirmatn (see "Fonts" above)
+└── icons/
+```

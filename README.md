@@ -93,6 +93,52 @@ curl http://localhost:3456/health
 
 ---
 
+## No-Server Mode (Standalone Extension)
+
+Prefer not to run a local server or Docker at all? `extension-standalone/` is a second, self-contained version of the extension that needs **nothing else running** — it calls your chosen STT/LLM provider directly from the browser and stores recordings in the browser's own IndexedDB instead of on disk.
+
+|  | `extension/` + `server/` | `extension-standalone/` |
+|---|---|---|
+| Requires a running server/Docker | Yes | **No** |
+| STT/LLM providers | OpenAI, Gemini, Custom API, **Claude Code / any CLI** | OpenAI, Gemini, Custom API only — no CLI option (browsers can't shell out) |
+| Recording storage | `data/` folder on disk | Browser's IndexedDB |
+| Config storage | `server/src/config.json` | `chrome.storage.local` |
+| Editable LLM prompts | Edit `server/src/prompts.yaml` by hand | Built into the Settings page UI |
+
+If you already use Claude Code or a custom CLI as your LLM, or want recordings saved as files on disk, use the server-based extension above. Otherwise, the standalone variant is simpler to set up.
+
+### Setup
+
+1. Open Chrome → `chrome://extensions`
+2. Enable **Developer mode** → **Load unpacked** → select `extension-standalone/`
+3. The onboarding page opens automatically and walks you through granting microphone permission
+4. Click ⚙ in the popup to open Settings and configure your STT and LLM provider
+
+### Settings
+
+| Setting | Default | Description |
+|---|---|---|
+| STT Provider | `custom` | `custom` (your own Whisper-compatible server), `openai`, or `gemini` |
+| STT Base URL | `http://localhost:8080/v1` | Only shown for the `custom` provider |
+| STT API Key | *(blank)* | Required for `openai`/`gemini`, optional for `custom` |
+| STT Model | `whisper-1` | |
+| LLM Provider | `openai` | `openai`, `gemini-api`, or `api` (any OpenAI-compatible endpoint) |
+| API Base URL / Key / Model | *(blank)* | Only shown for the `api` provider |
+| **Prompts** | built-in Persian prompts | Click any of the three prompts (MOM / Notes / Correction) to expand it and edit the wording — keep the `##` section headings and `{{transcript}}` placeholder intact, or output parsing breaks |
+| Meeting domains | Meet / Zoom / Teams / Skype | Add custom domains so PechPech also notifies you when you join a call there |
+
+### Two modes
+
+The popup has a toggle between:
+- **جلسه (Meeting)** — the standard three-section MOM (خلاصه / تصمیمات / اقدامات)
+- **یادداشت (Notes)** — for thinking aloud solo rather than a multi-person meeting; extracts each distinct thought as its own bullet instead of summarizing
+
+### Privacy
+
+Recordings never leave your device except as direct calls to whichever STT/LLM provider you configure in Settings — there is no intermediary server at all, not even a local one.
+
+---
+
 ## Running PechPech
 
 ```bash
@@ -221,6 +267,7 @@ PechPech/
 │   ├── settings.html/js        — Settings page
 │   ├── onboarding.html/js      — 5-step setup wizard
 │   └── icons/
+├── extension-standalone/       — No-server variant (see "No-Server Mode" above)
 ├── launcher/
 │   ├── index.js                — Start, stop, status, auto-start
 │   └── onboarding/

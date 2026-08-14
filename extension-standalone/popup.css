@@ -40,8 +40,22 @@
 }
 
 /* ── Base ───────────────────────────────────────────────────────── */
+/* Chrome sizes the popup window to the document's rendered content —
+   if anything inside overflows body's intended width (even briefly, e.g.
+   before the web font loads), the whole popup can blow up far past 400px.
+   Constraining html too and clipping overflow keeps that from happening;
+   margin:auto centers the content if the popup is ever shown in a larger
+   frame than 400px (e.g. opened via "Inspect popup") instead of the whole
+   layout sitting flush against one edge with a huge empty gutter. */
+html {
+  width: 400px;
+  overflow-x: hidden;
+}
+
 body {
   width: 400px;
+  margin: 0 auto;
+  overflow-x: hidden;
   background: #fff;
   color: var(--g900);
   font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;

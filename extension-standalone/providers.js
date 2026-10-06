@@ -15,6 +15,14 @@
 
 // ── Helpers ───────────────────────────────────────────────────────
 
+// How long one speech-to-text request may take, upload included. An hour-long
+// recording is ~13–28 MB, which a slow uplink needs several minutes just to
+// send, before the provider has transcribed anything. If this is changed,
+// STUCK_THRESHOLD_MS in background.js must stay above STT + LLM timeouts
+// combined, or the watchdog will declare a healthy job dead.
+const STT_TIMEOUT_MS  = 15 * 60 * 1000;
+const STT_TIMEOUT_MIN = STT_TIMEOUT_MS / 60000;
+
 function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -39,10 +47,16 @@ async function callWhisperEndpoint({ baseUrl, apiKey, model, audioBlob, mimeType
   console.log(`[stt] Sending audio to ${endpoint} (${audioBlob.size} bytes), model="${model}"`);
 
   const mime = mimeType || 'audio/webm';
-  const ext  = mime.includes('ogg') ? 'ogg' : mime.includes('wav') ? 'wav' : 'webm';
+  const ext  = mime.includes('mp4') ? 'm4a' : mime.includes('ogg') ? 'ogg' : mime.includes('wav') ? 'wav' : 'webm';
   const form = new FormData();
   form.append('model',           model);
-  form.append('language',        'fa');
+  // No `language` field, deliberately: leaving it out asks the server to detect
+  // the spoken language itself. It must NOT be derived from the UI language —
+  // that is a preference for the interface and the generated minutes, not a
+  // statement about what was said, and forcing it makes a Persian meeting come
+  // back as English (or the reverse). The server picks the language from the
+  // start of the audio, so a meeting that opens in a different language than
+  // it continues in can be transcribed in the opening one.
   form.append('response_format', 'json');
   form.append('file',            audioBlob, `recording.${ext}`);
 
@@ -55,11 +69,11 @@ async function callWhisperEndpoint({ baseUrl, apiKey, model, audioBlob, mimeType
       method:  'POST',
       headers,
       body:    form,
-      signal:  withTimeout(signal, 300_000),
+      signal:  withTimeout(signal, STT_TIMEOUT_MS),
     });
   } catch (err) {
     if (err.name === 'AbortError' || err.name === 'TimeoutError') {
-      throw new Error('STT endpoint timed out (>5 min) or was cancelled. Is the Whisper server running?');
+      throw new Error(`STT endpoint timed out (>${STT_TIMEOUT_MIN} min) or was cancelled. Is the Whisper server running?`);
     }
     throw new Error(`STT endpoint unreachable: ${err.message}. Is the server at ${baseUrl} running?`);
   }
@@ -145,6 +159,12 @@ function createGeminiSTTAdapter({ sttKey, sttModel }) {
 
       const base64 = await blobToBase64(audioBlob);
 
+      // Language-neutral on purpose (see the note in callWhisperEndpoint): the
+      // model is told to write down what is spoken, in whatever language that is.
+      const transcribeInstruction =
+        'Transcribe this audio file word-for-word and accurately, in the language(s) actually spoken — do not translate. ' +
+        'Return only the transcribed text, without any explanation or introduction.';
+
       let response;
       try {
         response = await fetch(endpoint, {
@@ -157,16 +177,16 @@ function createGeminiSTTAdapter({ sttKey, sttModel }) {
             contents: [{
               role:  'user',
               parts: [
-                { text: 'این فایل صوتی را کلمه به کلمه و دقیق به فارسی رونویسی کن. فقط متن رونویسی‌شده را برگردان، بدون هیچ توضیح یا مقدمه‌ای.' },
+                { text: transcribeInstruction },
                 { inline_data: { mime_type: mime, data: base64 } },
               ],
             }],
           }),
-          signal: withTimeout(signal, 300_000),
+          signal: withTimeout(signal, STT_TIMEOUT_MS),
         });
       } catch (err) {
         if (err.name === 'AbortError' || err.name === 'TimeoutError') {
-          throw new Error('Gemini STT timed out (>5 min) or was cancelled.');
+          throw new Error(`Gemini STT timed out (>${STT_TIMEOUT_MIN} min) or was cancelled.`);
         }
         throw new Error(`Gemini STT unreachable: ${err.message}`);
       }
@@ -245,6 +265,13 @@ function createAPIAdapter({ llmApiUrl, llmApiKey, llmApiModel }) {
           body:   JSON.stringify({
             model,
             messages: [{ role: 'user', content: promptText }],
+            // Explicit, not just relying on the default: real OpenAI treats
+            // an omitted `stream` as false, but not every OpenAI-compatible
+            // gateway agrees (some — e.g. multi-provider routers built for
+            // CLI tools — default to streaming). Everything below expects one
+            // JSON object back, not an SSE `data: {...}` chunk stream, so this
+            // has to be pinned rather than assumed.
+            stream: false,
           }),
           signal: withTimeout(signal, 900_000),
         });
@@ -258,6 +285,19 @@ function createAPIAdapter({ llmApiUrl, llmApiKey, llmApiModel }) {
       if (!response.ok) {
         const detail = await response.text().catch(() => '');
         throw new Error(`LLM API returned HTTP ${response.status}: ${detail || response.statusText}`);
+      }
+
+      // Belt-and-suspenders: some gateways stream regardless of what the
+      // request asked for. A streamed response's Content-Type is
+      // text/event-stream (never JSON), so catching that here gives a
+      // specific, actionable error instead of a confusing JSON-parse failure
+      // two lines down.
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('text/event-stream')) {
+        throw new Error(
+          `LLM API sent a streaming (SSE) response despite "stream": false in the request. ` +
+          `This gateway/endpoint may not support non-streaming responses.`
+        );
       }
 
       let json;
@@ -379,3 +419,6 @@ function createLLMProvider(config) {
 }
 
 export { createSTTProvider, createLLMProvider };
+// Note: speech-to-text takes no language — it is auto-detected from the audio.
+// The 'en' | 'fa' `language` that background.js pins on a recording only selects
+// the language of the generated minutes (prompts and parsers), never of the transcript.

@@ -4,7 +4,8 @@
 // STT/LLM config lives directly in chrome.storage.local. The LLM CLI
 // option is dropped entirely (child_process cannot run in a browser).
 
-import { MOM_PROMPT, NOTES_PROMPT, CORRECTION_PROMPT } from './prompts.js';
+import { MOM_PROMPT_EN, MOM_PROMPT_FA, NOTES_PROMPT_EN, NOTES_PROMPT_FA, CORRECTION_PROMPT_EN, CORRECTION_PROMPT_FA } from './prompts.js';
+import { t, getLanguage, bootLanguage } from './i18n.js';
 
 // ── DOM Refs ──────────────────────────────────────────────────────
 const sttProviderEl = document.getElementById('stt-provider');
@@ -15,6 +16,7 @@ const llmCliEl      = document.getElementById('llm-cli');
 const llmApiUrlEl   = document.getElementById('llm-api-url');
 const llmApiKeyEl   = document.getElementById('llm-api-key');
 const llmApiModelEl = document.getElementById('llm-api-model');
+const audioQualityEl = document.getElementById('audio-quality');
 const apiFlds       = document.getElementById('api-fields');
 const btnSave       = document.getElementById('btn-save');
 const btnReset      = document.getElementById('btn-reset');
@@ -26,6 +28,7 @@ const customList    = document.getElementById('custom-domains-list');
 const CONFIG_KEYS = [
   'sttProvider', 'sttUrl', 'sttKey', 'sttModel',
   'llmCli', 'llmApiUrl', 'llmApiKey', 'llmApiModel',
+  'audioQuality',
   'promptMom', 'promptNotes', 'promptCorrection',
 ];
 
@@ -38,17 +41,25 @@ const CONFIG_DEFAULTS = {
   llmApiUrl:   '',
   llmApiKey:   '',
   llmApiModel: '',
+  audioQuality: 'standard',   // 'standard' (64 kbps) | 'compact' (32 kbps) — see offscreen.js
   promptMom:        '',
   promptNotes:      '',
   promptCorrection: '',
 };
 
-// Maps each accordion's data-prompt key to its textarea + default text.
+// Maps each accordion's data-prompt key to its textarea + a getter for the
+// current-language default text (the default prompt is language-reactive;
+// a user's saved override, once set, is used as-is regardless of language —
+// see promptOverrideHint in the UI).
 const PROMPT_FIELDS = {
-  mom:        { el: document.getElementById('prompt-mom'),        defaultText: MOM_PROMPT },
-  notes:      { el: document.getElementById('prompt-notes'),      defaultText: NOTES_PROMPT },
-  correction: { el: document.getElementById('prompt-correction'), defaultText: CORRECTION_PROMPT },
+  mom:        { el: document.getElementById('prompt-mom'),        defaultFor: lang => (lang === 'fa' ? MOM_PROMPT_FA : MOM_PROMPT_EN) },
+  notes:      { el: document.getElementById('prompt-notes'),      defaultFor: lang => (lang === 'fa' ? NOTES_PROMPT_FA : NOTES_PROMPT_EN) },
+  correction: { el: document.getElementById('prompt-correction'), defaultFor: lang => (lang === 'fa' ? CORRECTION_PROMPT_FA : CORRECTION_PROMPT_EN) },
 };
+
+function defaultTextFor(key) {
+  return PROMPT_FIELDS[key].defaultFor(getLanguage());
+}
 
 // ── Custom Meeting Domains ────────────────────────────────────────
 
@@ -64,7 +75,7 @@ function renderCustomDomains() {
   customList.innerHTML = customDomains.map((d, i) => `
     <span class="domain-chip domain-chip--custom">
       ${d}
-      <button class="domain-chip-remove" data-idx="${i}" title="حذف">×</button>
+      <button class="domain-chip-remove" data-idx="${i}" title="${t('deleteTitle')}">×</button>
     </span>`).join('');
   customList.querySelectorAll('.domain-chip-remove').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -97,12 +108,12 @@ const API_KEY_LINK   = document.getElementById('llm-api-key-link');
 const API_PRESETS = {
   openai: {
     modelPlaceholder: 'gpt-4o',
-    keyHint:          'کلید API از platform.openai.com',
+    keyHintKey:       'keyHintOpenAI',
     keyLinkUrl:       'https://platform.openai.com/api-keys',
   },
   'gemini-api': {
     modelPlaceholder: 'gemini-3.6-flash',
-    keyHint:          'کلید API از aistudio.google.com',
+    keyHintKey:       'keyHintGemini',
     keyLinkUrl:       'https://aistudio.google.com/apikey',
   },
 };
@@ -116,8 +127,8 @@ function updateLLMFields() {
 
   const preset = API_PRESETS[v];
   llmApiModelEl.placeholder = preset?.modelPlaceholder || 'gpt-4o';
-  API_MODEL_HINT.innerHTML  = `پیش‌فرض: <code>${preset?.modelPlaceholder || 'gpt-4o'}</code>`;
-  API_KEY_HINT.textContent  = preset?.keyHint || '';
+  API_MODEL_HINT.innerHTML  = t('defaultModelHint', { model: preset?.modelPlaceholder || 'gpt-4o' });
+  API_KEY_HINT.textContent  = preset ? t(preset.keyHintKey) : '';
 
   if (preset?.keyLinkUrl) {
     API_KEY_LINK.href = preset.keyLinkUrl;
@@ -138,8 +149,8 @@ const STT_KEY_LINK        = document.getElementById('stt-key-link');
 
 const STT_DEFAULT_HINT = {
   modelPlaceholder: 'whisper-1',
-  modelHint:  'پیش‌فرض: <code>whisper-1</code> (OpenAI) &nbsp;|&nbsp; GapGPT: <code>whisper-large-v3</code>',
-  keyHint:    'برای سرور محلی خالی بگذارید. برای OpenAI / Groq وارد کنید.',
+  modelHintKey: 'sttModelHintDefault',
+  keyHintKey:   'sttKeyHintDefault',
   keyOptional: true,
 };
 
@@ -147,15 +158,17 @@ const STT_DEFAULT_HINT = {
 const STT_PRESETS = {
   openai: {
     modelPlaceholder: 'whisper-1',
-    modelHint:  'پیش‌فرض: <code>whisper-1</code>',
-    keyHint:    'کلید API از platform.openai.com — الزامی است.',
+    modelHintKey: 'defaultModelHint',
+    modelHintVars: { model: 'whisper-1' },
+    keyHintKey:   'sttKeyHintOpenAIRequired',
     keyOptional: false,
     keyLinkUrl: 'https://platform.openai.com/api-keys',
   },
   gemini: {
     modelPlaceholder: 'gemini-3.6-flash',
-    modelHint:  'پیش‌فرض: <code>gemini-3.6-flash</code>',
-    keyHint:    'کلید API از aistudio.google.com — الزامی است.',
+    modelHintKey: 'defaultModelHint',
+    modelHintVars: { model: 'gemini-3.6-flash' },
+    keyHintKey:   'sttKeyHintGeminiRequired',
     keyOptional: false,
     keyLinkUrl: 'https://aistudio.google.com/apikey',
   },
@@ -167,8 +180,8 @@ function updateSTTFields() {
 
   const preset = STT_PRESETS[v] || STT_DEFAULT_HINT;
   sttModelEl.placeholder = preset.modelPlaceholder;
-  STT_MODEL_HINT.innerHTML = preset.modelHint;
-  STT_KEY_HINT.textContent = preset.keyHint;
+  STT_MODEL_HINT.innerHTML = t(preset.modelHintKey, preset.modelHintVars);
+  STT_KEY_HINT.textContent = t(preset.keyHintKey);
   STT_KEY_OPTIONAL_LBL.classList.toggle('hidden', !preset.keyOptional);
 
   if (preset.keyLinkUrl) {
@@ -194,7 +207,7 @@ document.querySelectorAll('.prompt-header').forEach(header => {
 document.querySelectorAll('[data-reset-prompt]').forEach(btn => {
   btn.addEventListener('click', () => {
     const key = btn.dataset.resetPrompt;
-    PROMPT_FIELDS[key].el.value = PROMPT_FIELDS[key].defaultText;
+    PROMPT_FIELDS[key].el.value = defaultTextFor(key);
   });
 });
 
@@ -218,9 +231,15 @@ async function loadSettings() {
   llmApiKeyEl.value   = cfg.llmApiKey;
   llmApiModelEl.value = cfg.llmApiModel;
 
-  PROMPT_FIELDS.mom.el.value        = cfg.promptMom        || PROMPT_FIELDS.mom.defaultText;
-  PROMPT_FIELDS.notes.el.value      = cfg.promptNotes      || PROMPT_FIELDS.notes.defaultText;
-  PROMPT_FIELDS.correction.el.value = cfg.promptCorrection || PROMPT_FIELDS.correction.defaultText;
+  // A stored value that isn't one of the options (stale or hand-edited) would
+  // leave the <select> blank and then save '' — fall back to the default.
+  audioQualityEl.value = [...audioQualityEl.options].some(o => o.value === cfg.audioQuality)
+    ? cfg.audioQuality
+    : CONFIG_DEFAULTS.audioQuality;
+
+  PROMPT_FIELDS.mom.el.value       = cfg.promptMom        || defaultTextFor('mom');
+  PROMPT_FIELDS.notes.el.value      = cfg.promptNotes      || defaultTextFor('notes');
+  PROMPT_FIELDS.correction.el.value = cfg.promptCorrection || defaultTextFor('correction');
 
   updateSTTFields();
   updateLLMFields();
@@ -228,9 +247,9 @@ async function loadSettings() {
 
 // ── Save settings ─────────────────────────────────────────────────
 function savedPromptValue(key) {
-  const { el, defaultText } = PROMPT_FIELDS[key];
+  const { el } = PROMPT_FIELDS[key];
   const value = el.value.trim();
-  return value === defaultText.trim() ? '' : value;
+  return value === defaultTextFor(key).trim() ? '' : value;
 }
 
 async function saveSettings() {
@@ -243,6 +262,7 @@ async function saveSettings() {
     llmApiUrl:   llmApiUrlEl.value.trim(),
     llmApiKey:   llmApiKeyEl.value.trim(),
     llmApiModel: llmApiModelEl.value.trim(),
+    audioQuality: audioQualityEl.value,
     promptMom:        savedPromptValue('mom'),
     promptNotes:      savedPromptValue('notes'),
     promptCorrection: savedPromptValue('correction'),
@@ -258,17 +278,17 @@ async function saveSettings() {
 
 // ── Reset to defaults ─────────────────────────────────────────────
 async function resetSettings() {
-  if (!confirm('تنظیمات به حالت پیش‌فرض بازنشانی شود؟')) return;
+  if (!confirm(t('confirmReset'))) return;
 
   await new Promise(r => chrome.storage.local.set({ ...CONFIG_DEFAULTS }, r));
   await loadSettings();
-  showToast('تنظیمات بازنشانی شد.');
+  showToast(t('resetToast'));
 }
 
 // ── Toast notification ────────────────────────────────────────────
 let toastTimeout = null;
 function showToast(message) {
-  toastSaved.textContent = '✓ ' + (message || 'تنظیمات با موفقیت ذخیره شد.');
+  toastSaved.textContent = message ? ('✓ ' + message) : t('savedToast');
   toastSaved.classList.add('visible');
   if (toastTimeout) clearTimeout(toastTimeout);
   toastTimeout = setTimeout(() => toastSaved.classList.remove('visible'), 3000);
@@ -281,4 +301,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveSettings();
 });
 
-loadSettings();
+(async () => {
+  await bootLanguage();
+  await loadSettings();
+})();

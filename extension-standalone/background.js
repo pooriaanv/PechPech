@@ -19,6 +19,19 @@ import {
   buildMOMPrompt, buildNotesPrompt, buildCorrectionPrompt,
   parseMOMOutput, parseNotesOutput, parseCorrectionOutput,
 } from './prompts.js';
+import { t, initLanguage, setLanguageLocal, getLanguage } from './i18n.js';
+
+// Keeps this service worker's copy of the language dictionary in sync with
+// whatever the popup/settings last saved — a service worker has no DOM to
+// re-read on demand, so notification/tooltip strings need a live cache
+// rather than an async storage read per call. Mirrors the existing
+// _customMeetingDomains cache pattern below.
+initLanguage();
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.language) {
+    setLanguageLocal(changes.language.newValue);
+  }
+});
 
 const OFFSCREEN_URL   = chrome.runtime.getURL('offscreen.html');
 const ONBOARDING_URL  = chrome.runtime.getURL('onboarding.html');
@@ -59,10 +72,11 @@ const _activeJobs = new Map();
 
 const WATCHDOG_ALARM      = 'processing-watchdog';
 // Must stay comfortably above the worst-case legitimate duration of a single
-// run (STT timeout 5 min + LLM timeout 15 min = 20 min sequential worst case),
+// run (STT timeout 15 min + LLM timeout 15 min = 30 min sequential worst case),
 // or this would flag a slow-but-still-alive job as stuck and overwrite it
 // with a false error right as the real result is about to land.
-const STUCK_THRESHOLD_MS  = 25 * 60 * 1000; // 25 minutes
+// (STT_TIMEOUT_MS lives in providers.js; keep this above it plus the LLM's.)
+const STUCK_THRESHOLD_MS  = 35 * 60 * 1000; // 35 minutes
 
 chrome.alarms.create(WATCHDOG_ALARM, { periodInMinutes: 1 });
 
@@ -81,12 +95,12 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (rec.status === 'correcting') {
       await updateRecording(rec.id, {
         correction_status: 'error',
-        correction_error:  'پردازش متوقف شد (احتمالاً به دلیل ری‌استارت مرورگر). لطفاً دوباره تلاش کنید.',
+        correction_error:  t('bgWatchdogRecovered'),
       }).catch(() => {});
     } else {
       await updateRecording(rec.id, {
         status: 'error',
-        error:  'پردازش متوقف شد (احتمالاً به دلیل ری‌استارت مرورگر). لطفاً دوباره تلاش کنید.',
+        error:  t('bgWatchdogRecovered'),
       }).catch(() => {});
     }
   }
@@ -185,7 +199,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       // Holding the channel open until that first write completes closes
       // the race — the actual STT/LLM work still continues afterward
       // without being awaited by this response.
-      beginProcessing(msg.id, msg.mode).then(sendResponse);
+      beginProcessing(msg.id, msg.mode, msg.language).then(sendResponse);
       return true;
 
     case 'CORRECT_TRANSCRIPT':
@@ -210,9 +224,9 @@ async function cancelJob(id) {
 
   const rec = await getRecording(id);
   if (rec?.correction_status === 'correcting') {
-    await updateRecording(id, { correction_status: 'error', correction_error: 'لغو شد توسط کاربر' }).catch(() => {});
+    await updateRecording(id, { correction_status: 'error', correction_error: t('bgCancelledByUser') }).catch(() => {});
   } else {
-    await updateRecording(id, { status: 'error', error: 'لغو شد توسط کاربر' }).catch(() => {});
+    await updateRecording(id, { status: 'error', error: t('bgCancelledByUser') }).catch(() => {});
   }
 }
 
@@ -227,7 +241,12 @@ async function cancelJob(id) {
 // left any prior terminal status (e.g. a leftover 'error' from a previous
 // cancel). The actual STT/LLM work is handed off to continueProcessing()
 // without being awaited here, so this resolves quickly.
-async function beginProcessing(id, mode = 'mom') {
+//
+// `language` is pinned onto the record the first time processing actually
+// runs (from whatever the popup's UI language was at that instant) and
+// reused on any later re-process/correct — a UI language toggle after this
+// point must not retroactively change what this recording was generated in.
+async function beginProcessing(id, mode = 'mom', language) {
   const rec = await getRecording(id);
   if (!rec) {
     console.error(`[background] ${id} STEP=begin failed: recording not found`);
@@ -238,18 +257,20 @@ async function beginProcessing(id, mode = 'mom') {
   // just let the popup poll the existing job instead of starting another.
   if (['transcribing', 'summarizing'].includes(rec.status)) return { success: true };
 
+  const lang = rec.language || (language === 'fa' ? 'fa' : 'en');
   const hasTranscript = !!rec.transcript;
   await updateRecording(id, {
     status:              hasTranscript ? 'summarizing' : 'transcribing',
     error:               null,
+    language:            lang,
     processingStartedAt: Date.now(),
   });
 
-  continueProcessing(id, mode, rec, hasTranscript); // fire-and-forget
+  continueProcessing(id, mode, rec, hasTranscript, lang); // fire-and-forget
   return { success: true };
 }
 
-async function continueProcessing(id, mode, rec, hasTranscript) {
+async function continueProcessing(id, mode, rec, hasTranscript, language) {
   const controller = new AbortController();
   _activeJobs.set(id, controller);
 
@@ -278,12 +299,12 @@ async function continueProcessing(id, mode, rec, hasTranscript) {
 
     try {
       if (mode === 'notes') {
-        const llmOutput = await llmProvider.invoke(buildNotesPrompt(transcript, config.promptNotes), { signal: controller.signal });
-        const notes     = parseNotesOutput(llmOutput);
+        const llmOutput = await llmProvider.invoke(buildNotesPrompt(transcript, language, config.promptNotes), { signal: controller.signal });
+        const notes     = parseNotesOutput(llmOutput, language);
         await updateRecording(id, { status: 'done', mode: 'notes', notes });
       } else {
-        const llmOutput = await llmProvider.invoke(buildMOMPrompt(transcript, config.promptMom), { signal: controller.signal });
-        const mom       = parseMOMOutput(llmOutput);
+        const llmOutput = await llmProvider.invoke(buildMOMPrompt(transcript, language, config.promptMom), { signal: controller.signal });
+        const mom       = parseMOMOutput(llmOutput, language);
         await updateRecording(id, {
           status:       'done',
           mode:         'mom',
@@ -297,7 +318,7 @@ async function continueProcessing(id, mode, rec, hasTranscript) {
       console.error(`[background] ${id} STEP=summarize (provider=${config.llmCli}, mode=${mode}) failed:`, err.message, err);
       throw err;
     }
-    console.log(`[background] ${id} done (mode: ${mode})`);
+    console.log(`[background] ${id} done (mode: ${mode}, language: ${language})`);
 
   } catch (err) {
     console.error(`[background] ${id} processing failed:`, err.message);
@@ -327,11 +348,16 @@ async function beginCorrection(id) {
     processingStartedAt: Date.now(),
   });
 
-  continueCorrection(id, rec); // fire-and-forget
+  // Reuse the recording's own pinned generation language (not the live UI
+  // language) so the correction pass matches what the transcript/MOM were
+  // actually generated in — falls back to the current UI language only for
+  // recordings created before this field existed.
+  const lang = rec.language || getLanguage();
+  continueCorrection(id, rec, lang); // fire-and-forget
   return { success: true };
 }
 
-async function continueCorrection(id, rec) {
+async function continueCorrection(id, rec, language) {
   const controller = new AbortController();
   _activeJobs.set(id, controller);
 
@@ -341,13 +367,13 @@ async function continueCorrection(id, rec) {
 
     let llmOutput;
     try {
-      llmOutput = await llmProvider.invoke(buildCorrectionPrompt(rec.transcript, config.promptCorrection), { signal: controller.signal });
+      llmOutput = await llmProvider.invoke(buildCorrectionPrompt(rec.transcript, language, config.promptCorrection), { signal: controller.signal });
     } catch (err) {
       console.error(`[background] ${id} STEP=correct (provider=${config.llmCli}) failed:`, err.message, err);
       throw err;
     }
 
-    const corrected = parseCorrectionOutput(llmOutput);
+    const corrected = parseCorrectionOutput(llmOutput, language);
 
     await updateRecording(id, {
       correction_status:    'done',
@@ -375,7 +401,7 @@ async function handleStart(sendResponse) {
     if (!docAlive) {
       await clearState();
     } else {
-      sendResponse({ success: false, error: 'در حال حاضر ضبط در جریان است.' });
+      sendResponse({ success: false, error: t('bgAlreadyRecording') });
       return;
     }
   }
@@ -383,9 +409,15 @@ async function handleStart(sendResponse) {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) {
-      sendResponse({ success: false, error: 'تب فعالی یافت نشد.' });
+      sendResponse({ success: false, error: t('bgNoActiveTab') });
       return;
     }
+
+    // Read before the tabCapture stream id is minted: that id expires quickly,
+    // so nothing slow should sit between getting it and using it. The recorder
+    // lives in an offscreen document, which has no chrome.storage access, so
+    // the chosen quality travels in the start message.
+    const { audioQuality } = await chrome.storage.local.get('audioQuality');
 
     const streamId = await new Promise((resolve, reject) => {
       chrome.tabCapture.getMediaStreamId({ targetTabId: tab.id }, (id) => {
@@ -404,7 +436,7 @@ async function handleStart(sendResponse) {
     await saveState({ isRecording: true, recordingTabId: tab.id, startedAt: Date.now() });
     clearMeetingBadge(tab.id);
 
-    chrome.runtime.sendMessage({ type: 'START_CAPTURE', streamId, tabId: tab.id });
+    chrome.runtime.sendMessage({ type: 'START_CAPTURE', streamId, tabId: tab.id, audioQuality });
 
     sendResponse({ success: true, startedAt: _state.startedAt });
 
@@ -421,7 +453,7 @@ async function handleStop(sendResponse) {
   const state = await readState();
 
   if (!state.isRecording) {
-    sendResponse({ success: false, error: 'ضبطی در جریان نیست.' });
+    sendResponse({ success: false, error: t('bgNoRecordingInProgress') });
     return;
   }
 
@@ -433,7 +465,7 @@ async function handleStop(sendResponse) {
     await clearState();
     sendResponse({
       success: false,
-      error:   'ضبط به دلیل ری‌استارت مرورگر از دست رفت. لطفاً دوباره شروع کنید.',
+      error:   t('bgRecordingLost'),
     });
     return;
   }
@@ -447,7 +479,7 @@ async function handleStop(sendResponse) {
     // (no network round trip in this variant), but give a generous margin.
     setTimeout(async () => {
       if (stopResolver) {
-        stopResolver({ success: false, error: 'زمان انتظار برای ذخیره ضبط به پایان رسید.' });
+        stopResolver({ success: false, error: t('bgSaveTimedOut') });
         stopResolver = null;
         await clearState();
         closeOffscreenDocument();
@@ -551,7 +583,7 @@ const _badgedTabs = new Set();
 function setMeetingBadge(tabId) {
   chrome.action.setBadgeText({ text: '●', tabId });
   chrome.action.setBadgeBackgroundColor({ color: '#dc2626', tabId });
-  chrome.action.setTitle({ tabId, title: 'جلسه شناسایی شد — برای ضبط روی آیکون کلیک کنید' });
+  chrome.action.setTitle({ tabId, title: t('bgMeetingDetectedTooltip') });
   _badgedTabs.add(tabId);
 }
 
@@ -589,8 +621,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   chrome.notifications.create('meeting-detected', {
     type:    'basic',
     iconUrl: 'icons/icon128.png',
-    title:   'PechPech',
-    message: 'وارد کال شدی — ضبط رو شروع کنی؟',
+    title:   t('bgNotifTitle'),
+    message: t('bgNotifBody'),
   });
 });
 

@@ -15,6 +15,7 @@
  */
 
 import { listRecordings, getRecording, updateRecording, deleteRecording } from './store.js';
+import { t, tFor, getLanguage, setLanguage, applyTranslations, bootLanguage } from './i18n.js';
 
 // Wraps chrome.runtime.sendMessage in a Promise. background.js's
 // PROCESS_RECORDING/CORRECT_TRANSCRIPT/CANCEL_PROCESSING handlers hold the
@@ -42,6 +43,7 @@ const el = {
   btnNew:       $('btn-new'),
   btnRetry:     $('btn-retry'),
   btnRefresh:   $('btn-refresh'),
+  langToggle:   $('lang-toggle-btn'),
   elapsed:      $('elapsed-time'),
   procMsg:      $('processing-message'),
   errorMsg:     $('error-message'),
@@ -119,7 +121,7 @@ function applyModeToggle(mode) {
     btn.classList.toggle('active', btn.dataset.mode === mode);
     btn.setAttribute('aria-pressed', btn.dataset.mode === mode);
   });
-  el.heroLabel.textContent = mode === 'notes' ? 'شروع یادداشت صوتی' : 'شروع ضبط جلسه';
+  el.heroLabel.textContent = mode === 'notes' ? t('heroLabelNotes') : t('heroLabelMom');
 }
 
 function renderNotesList(rawNotes, ulEl, emptyEl) {
@@ -157,8 +159,10 @@ function fmtElapsed(ms) {
 
 function startTimer(startedAt) {
   elapsedStart = startedAt || Date.now();
-  const tick = () =>
-    (el.elapsed.textContent = toFarsi(fmtElapsed(Date.now() - elapsedStart)));
+  const tick = () => {
+    const raw = fmtElapsed(Date.now() - elapsedStart);
+    el.elapsed.textContent = getLanguage() === 'fa' ? toFarsi(raw) : raw;
+  };
   tick();
   elapsedTimer = setInterval(tick, 1000);
 }
@@ -172,11 +176,11 @@ function setProcessingStep(status) {
   el.stepSum.className   = 'step-item';
 
   const msgs = {
-    saving:       'در حال ذخیره‌سازی ضبط…',
-    transcribing: 'در حال رونویسی…',
-    summarizing:  currentMode === 'notes' ? 'در حال استخراج یادداشت‌ها…' : 'در حال تولید صورت‌جلسه…',
+    saving:       t('processingSaving'),
+    transcribing: t('processingTranscribing'),
+    summarizing:  currentMode === 'notes' ? t('processingSummarizingNotes') : t('processingSummarizingMom'),
   };
-  el.procMsg.textContent = msgs[status] || 'در حال پردازش…';
+  el.procMsg.textContent = msgs[status] || t('processingDefault');
 
   if (status === 'saving') {
     // No step highlighted while saving
@@ -200,6 +204,15 @@ function displayResult(mom) {
   el.momCard.classList.toggle('hidden', isNotes);
   el.notesCard.classList.toggle('hidden', !isNotes);
   el.transcriptSection.classList.toggle('hidden', isNotes);
+
+  // Generated content (summary/decisions/notes/transcript) follows the
+  // recording's own generation language, not necessarily the live UI
+  // language — e.g. viewing an English-generated recording while the UI
+  // is currently toggled to Persian must still render that content LTR.
+  const contentDir = (mom.language || getLanguage()) === 'fa' ? 'rtl' : 'ltr';
+  el.momCard.setAttribute('dir', contentDir);
+  el.resultNotesList.setAttribute('dir', contentDir);
+  el.transcript.setAttribute('dir', contentDir);
 
   if (isNotes) {
     renderNotesList(mom.notes, el.resultNotesList, el.resultNotesEmpty);
@@ -233,6 +246,7 @@ function momFromRecord(rec) {
     id:                   rec.id,
     title:                rec.title                || null,
     mode:                 rec.mode                 || 'mom',
+    language:             rec.language              || null,
     notes:                rec.notes                || '',
     summary:              rec.summary              || '',
     decisions:            rec.decisions            || '',
@@ -266,7 +280,7 @@ function startPolling(recordingId) {
 
       } else if (rec.status === 'error') {
         stopPolling();
-        const msg = rec.error || 'پردازش با خطا مواجه شد.';
+        const msg = rec.error || t('processingFailed');
         await saveSession({ popupState: 'error', errorMsg: msg });
         showError(msg);
 
@@ -285,11 +299,54 @@ function startPolling(recordingId) {
 const PLAY_ICON  = `<svg width="9" height="11" viewBox="0 0 9 11" fill="currentColor"><path d="M0 0l9 5.5L0 11z"/></svg>`;
 const PAUSE_ICON = `<svg width="9" height="11" viewBox="0 0 9 11" fill="currentColor"><rect x="0" y="0" width="3" height="11" rx="1"/><rect x="5.5" y="0" width="3" height="11" rx="1"/></svg>`;
 
+// m:ss, or h:mm:ss from an hour up. 0:00 for anything unknown.
+function fmtClock(s) {
+  if (!s || isNaN(s) || !isFinite(s)) return '0:00';
+  const total = Math.floor(s);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = String(total % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+}
+
+// Length in seconds of a recording blob, or null if it can't be read.
+// A WebM with no duration in its header (recordings made before the duration
+// patch) loads with duration = Infinity; seeking far past the end makes Chrome
+// scan to the real end and then report the true length.
+function probeDuration(blob) {
+  return new Promise((resolve) => {
+    const audio = new Audio();
+    const url   = URL.createObjectURL(blob);
+    let settled = false;
+
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      audio.removeAttribute('src');
+      audio.load();
+      URL.revokeObjectURL(url);
+      resolve(value);
+    };
+    const ifKnown = () => { if (isFinite(audio.duration) && audio.duration > 0) finish(audio.duration); };
+
+    audio.preload = 'metadata';
+    audio.onerror = () => finish(null);
+    audio.ondurationchange = ifKnown;
+    audio.onloadedmetadata = () => {
+      ifKnown();
+      if (!settled) audio.currentTime = 1e101;   // length unknown: force the scan
+    };
+    setTimeout(() => finish(null), 10_000);      // never hang the list on one bad file
+    audio.src = url;
+  });
+}
+
 class AudioPlayer {
   constructor() {
     this._audio     = new Audio();
     this._id        = null;
     this._objectUrl = null;
+    this._hint      = 0;   // known length (s) of the loaded recording, for when <audio> can't report one
 
     this._audio.addEventListener('timeupdate',      () => this._sync());
     this._audio.addEventListener('ended',           () => this._onEnd());
@@ -308,6 +365,7 @@ class AudioPlayer {
       const rec = await getRecording(id);
       if (!rec?.audioBlob) return;
       if (this._objectUrl) URL.revokeObjectURL(this._objectUrl);
+      this._hint = rec.durationMs > 0 ? rec.durationMs / 1000 : 0;
       this._objectUrl = URL.createObjectURL(rec.audioBlob);
       this._audio.src = this._objectUrl;
     }
@@ -318,9 +376,30 @@ class AudioPlayer {
   }
 
   seekTo(id, fraction) {
-    if (this._id === id && this._audio.duration) {
-      this._audio.currentTime = fraction * this._audio.duration;
+    const dur = this._dur();
+    if (this._id === id && dur) {
+      this._audio.currentTime = fraction * dur;
     }
+  }
+
+  // True for the recording that currently owns the player — playing, or paused
+  // part-way through. Its card's time/progress are the player's to draw.
+  owns(id) { return this._id === id; }
+
+  // The list is rebuilt from scratch on every refresh (coming back from a
+  // result, polling while something processes, a delete) and that puts every
+  // card back to its idle look while the audio element carries on playing
+  // underneath. Re-apply what is actually happening, and bring the card into
+  // view so there is something to press to stop it.
+  refreshUI() {
+    if (!this._id) return;
+    const card = this._card();
+    if (!card) return;               // deleted, or past the 40 shown
+
+    const playing = !this._audio.paused;
+    this._setBtn(this._id, playing);
+    this._sync();
+    if (playing) card.scrollIntoView({ block: 'nearest' });
   }
 
   _card()  { return document.querySelector(`[data-rec-id="${this._id}"]`); }
@@ -329,23 +408,29 @@ class AudioPlayer {
     const card = document.querySelector(`[data-rec-id="${id}"]`);
     const btn  = card?.querySelector('.play-btn');
     if (btn) btn.innerHTML = playing ? PAUSE_ICON : PLAY_ICON;
+    card?.classList.toggle('playing', playing);
   }
 
-  _fmt(s) {
-    if (!s || isNaN(s) || !isFinite(s)) return '0:00';
-    return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  // <audio> reports Infinity for a WebM with no duration in its header (every
+  // recording made before the duration patch), so fall back to the length we
+  // measured and stored.
+  _dur() {
+    const d = this._audio.duration;
+    return isFinite(d) && d > 0 ? d : this._hint;
   }
+
+  _fmt(s) { return fmtClock(s); }
 
   _sync() {
     const card = this._card();
     if (!card) return;
     const fill = card.querySelector('.progress-fill');
     const time = card.querySelector('.player-time');
-    const pct  = this._audio.duration
-      ? (this._audio.currentTime / this._audio.duration) * 100 : 0;
+    const dur  = this._dur();
+    const pct  = dur ? Math.min(100, (this._audio.currentTime / dur) * 100) : 0;
     if (fill) fill.style.width = `${pct}%`;
     if (time) time.textContent =
-      `${this._fmt(this._audio.currentTime)} / ${this._fmt(this._audio.duration)}`;
+      `${this._fmt(this._audio.currentTime)} / ${this._fmt(dur)}`;
   }
 
   _onEnd() {
@@ -354,13 +439,13 @@ class AudioPlayer {
     const fill = card?.querySelector('.progress-fill');
     const time = card?.querySelector('.player-time');
     if (fill) fill.style.width = '0%';
-    if (time) time.textContent = `0:00 / ${this._fmt(this._audio.duration)}`;
+    if (time) time.textContent = `0:00 / ${this._fmt(this._dur())}`;
     this._id = null;
   }
 
   _onLoad() {
     const time = this._card()?.querySelector('.player-time');
-    if (time) time.textContent = `0:00 / ${this._fmt(this._audio.duration)}`;
+    if (time) time.textContent = `0:00 / ${this._fmt(this._dur())}`;
   }
 }
 
@@ -382,9 +467,10 @@ function escapeHtml(str) {
 }
 
 function fmtDate(createdAt) {
-  const d = new Date(createdAt);
-  return d.toLocaleDateString('fa-IR') + ' ' +
-         d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+  const d      = new Date(createdAt);
+  const locale = getLanguage() === 'fa' ? 'fa-IR' : 'en-US';
+  return d.toLocaleDateString(locale) + ' ' +
+         d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 }
 
 function buildMeta(r) {
@@ -392,7 +478,7 @@ function buildMeta(r) {
   return `
     <div class="rec-title-row">
       <span class="rec-title-text${r.title ? ' has-title' : ''}">${r.title ? escapeHtml(r.title) : date}</span>
-      <button class="rec-edit-btn" title="ویرایش نام" aria-label="ویرایش نام">${PENCIL_SVG}</button>
+      <button class="rec-edit-btn" title="${t('editNameTitle')}" aria-label="${t('editNameTitle')}">${PENCIL_SVG}</button>
     </div>
     ${r.title ? `<span class="rec-date-sub" dir="ltr">${date}</span>` : ''}
   `;
@@ -413,9 +499,9 @@ function enterTitleEdit(meta, rec) {
   meta.innerHTML = `
     <div class="rec-title-edit-row">
       <input class="rec-title-input" type="text" value="${escapeHtml(rec.title || '')}"
-             placeholder="نام جلسه..." maxlength="80" dir="rtl">
-      <button class="title-action-btn title-save-btn"   title="ذخیره (Enter)">${CHECK_SVG}</button>
-      <button class="title-action-btn title-cancel-btn" title="انصراف (Esc)">${CLOSE_SVG}</button>
+             placeholder="${t('meetingNamePlaceholder')}" maxlength="80">
+      <button class="title-action-btn title-save-btn"   title="${t('saveEnterTitle')}">${CHECK_SVG}</button>
+      <button class="title-action-btn title-cancel-btn" title="${t('cancelEscTitle')}">${CLOSE_SVG}</button>
     </div>
   `;
 
@@ -457,32 +543,58 @@ function enterTitleEdit(meta, rec) {
   input.addEventListener('blur', doSave);
 }
 
+// Cards are drawn with a 0:00 length; this fills in the real one. Measured once
+// per recording and stored on it, so later refreshes are just a text write.
+let durationRun = 0;
+async function fillDurations(recs) {
+  const run = ++durationRun;
+  for (const r of recs) {
+    if (run !== durationRun) return;   // a newer render has taken over
+
+    let seconds = r.durationMs > 0 ? r.durationMs / 1000 : 0;
+    if (!seconds && r.audioBlob) {
+      seconds = (await probeDuration(r.audioBlob)) || 0;
+      if (seconds) {
+        r.durationMs = Math.round(seconds * 1000);
+        updateRecording(r.id, { durationMs: r.durationMs }).catch(() => {});
+      }
+    }
+    if (!seconds || player.owns(r.id)) continue;   // the player draws its own card
+
+    const time = document.querySelector(`[data-rec-id="${r.id}"] .player-time`);
+    if (time) time.textContent = `0:00 / ${fmtClock(seconds)}`;
+  }
+}
+
 async function loadRecordingsList() {
-  el.recList.innerHTML = '<div class="rec-empty">در حال بارگذاری…</div>';
+  el.recList.innerHTML = `<div class="rec-empty">${t('loading')}</div>`;
   try {
     const list = await listRecordings();
 
     if (!list.length) {
-      el.recList.innerHTML = '<div class="rec-empty">هنوز ضبطی وجود ندارد.</div>';
+      el.recList.innerHTML = `<div class="rec-empty">${t('noRecordingsYet')}</div>`;
       return;
     }
 
-    el.recList.innerHTML = list.slice(0, 40).map(r => buildCard(r)).join('');
+    const shown = list.slice(0, 40);
+    el.recList.innerHTML = shown.map(r => buildCard(r)).join('');
     wireCardEvents(list);
+    player.refreshUI();
+    fillDurations(shown).catch(err => console.warn('[popup] fillDurations:', err));
 
   } catch (err) {
     console.error('[popup] loadRecordingsList error:', err);
-    el.recList.innerHTML = '<div class="rec-empty">خطا در بارگذاری ضبط‌ها.</div>';
+    el.recList.innerHTML = `<div class="rec-empty">${t('errorLoadingRecordings')}</div>`;
   }
 }
 
 function buildCard(r) {
   const labels = {
-    saved:        'ذخیره شده',
-    done:         '✓ آماده',
-    transcribing: 'رونویسی…',
-    summarizing:  'خلاصه‌سازی…',
-    error:        'خطا',
+    saved:        t('badgeSaved'),
+    done:         t('badgeDone'),
+    transcribing: t('badgeTranscribing'),
+    summarizing:  t('badgeSummarizing'),
+    error:        t('badgeError'),
   };
   const badge  = labels[r.status] || r.status;
   const hasAudio = true; // every record has an inline audioBlob in this variant
@@ -505,30 +617,30 @@ function buildCard(r) {
           <div class="mini-spinner"></div>
           <span>${badge}</span>
         </div>
-        <button class="btn btn-sm btn-ghost" data-cancel="${r.id}">لغو</button>
+        <button class="btn btn-sm btn-ghost" data-cancel="${r.id}">${t('cancel')}</button>
         <span class="spacer"></span>
-        <button class="btn-delete" data-del="${r.id}" title="حذف">×</button>
+        <button class="btn-delete" data-del="${r.id}" title="${t('deleteTitle')}">×</button>
       </div>`;
   } else if (r.status === 'saved' || r.status === 'error') {
     actionsHTML = `
       <div class="rec-actions">
-        <button class="btn btn-sm btn-violet-outline" data-process="${r.id}">پردازش</button>
+        <button class="btn btn-sm btn-violet-outline" data-process="${r.id}">${t('process')}</button>
         <span class="spacer"></span>
-        <button class="btn-delete" data-del="${r.id}" title="حذف">×</button>
+        <button class="btn-delete" data-del="${r.id}" title="${t('deleteTitle')}">×</button>
       </div>`;
   } else if (r.status === 'done') {
     actionsHTML = `
       <div class="rec-actions">
-        <button class="btn btn-sm btn-green-outline" data-view="${r.id}">مشاهده نتیجه</button>
+        <button class="btn btn-sm btn-green-outline" data-view="${r.id}">${t('viewResult')}</button>
         <span class="spacer"></span>
-        <button class="btn-delete" data-del="${r.id}" title="حذف">×</button>
+        <button class="btn-delete" data-del="${r.id}" title="${t('deleteTitle')}">×</button>
       </div>`;
   }
 
   const badgeHTML = r.status === 'done'
     ? `<div class="rec-badge-stack">
         <span class="badge badge-done">${badge}</span>
-        ${r.mode ? `<span class="badge rec-mode-badge rec-mode-badge--${r.mode}">${r.mode === 'mom' ? 'جلسه' : 'یادداشت'}</span>` : ''}
+        ${r.mode ? `<span class="badge rec-mode-badge rec-mode-badge--${r.mode}">${r.mode === 'mom' ? t('modeMeeting') : t('modeNotes')}</span>` : ''}
        </div>`
     : `<span class="badge badge-${r.status}">${badge}</span>`;
 
@@ -603,7 +715,11 @@ async function triggerProcess(id, mode = 'mom') {
   setProcessingStep('transcribing');
   await saveSession({ popupState: 'processing', recordingId: id, currentMode: mode });
 
-  await sendMessage({ type: 'PROCESS_RECORDING', id, mode });
+  // The recording's generation language is pinned at process time (from
+  // whatever the UI is currently set to) and stored on the record itself —
+  // a later UI toggle must not retroactively change what this recording
+  // was generated in. See background.js's beginProcessing().
+  await sendMessage({ type: 'PROCESS_RECORDING', id, mode, language: getLanguage() });
   startPolling(id);
 }
 
@@ -660,13 +776,13 @@ el.btnStart.addEventListener('click', async () => {
 
   if (micState === 'denied') {
     openMicPermissionTab();
-    showError('دسترسی میکروفون قبلاً رد شده است.\nیک تب جدید باز شد — طبق راهنما دسترسی را فعال کنید، سپس به اینجا برگردید و دوباره «شروع ضبط» را بزنید.');
+    showError(t('micDeniedRetry'));
     return;
   }
 
   if (micState === 'prompt') {
     openMicPermissionTab();
-    showError('یک تب جدید برای دسترسی میکروفون باز شد.\nپس از تایید دسترسی، به این پنجره برگردید و دوباره «شروع ضبط» را بزنید.');
+    showError(t('micPromptOpened'));
     return;
   }
 
@@ -677,13 +793,13 @@ el.btnStart.addEventListener('click', async () => {
       s.getTracks().forEach(t => t.stop());
     } catch (err) {
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        showError('دسترسی به میکروفون رد شد.\nلطفاً در تنظیمات Chrome دسترسی میکروفون را فعال کنید.');
+        showError(t('micDenied'));
         return;
       }
     }
   }
 
-  el.recModeLabel.textContent = currentMode === 'notes' ? 'یادداشت' : 'جلسه';
+  el.recModeLabel.textContent = currentMode === 'notes' ? t('modeNotes') : t('modeMeeting');
   showState('recording');
   startTimer();
 
@@ -692,7 +808,7 @@ el.btnStart.addEventListener('click', async () => {
       stopTimer();
       showState('idle');
       loadRecordingsList();
-      showError(`ضبط شروع نشد: ${response?.error || chrome.runtime.lastError?.message || 'خطا'}`);
+      showError(t('recordingNotStarted', { error: response?.error || chrome.runtime.lastError?.message || t('badgeError') }));
       return;
     }
     if (response.startedAt) elapsedStart = response.startedAt;
@@ -708,7 +824,7 @@ el.btnStop.addEventListener('click', () => {
 
   chrome.runtime.sendMessage({ type: 'STOP_RECORDING' }, async response => {
     if (chrome.runtime.lastError || !response?.success) {
-      const msg = response?.error || chrome.runtime.lastError?.message || 'خطا در توقف ضبط';
+      const msg = response?.error || chrome.runtime.lastError?.message || t('errorStoppingRecording');
       await saveSession({ popupState: 'error', errorMsg: msg });
       showError(msg);
       return;
@@ -727,32 +843,36 @@ el.btnSave.addEventListener('click', () => {
   const now  = new Date();
   const date = now.toISOString().slice(0, 10);
   const time = now.toTimeString().slice(0, 5);
-  const sanitize = t => t.replace(/[<>:"/\\|?*]/g, '').trim().replace(/\s+/g, '_').slice(0, 40);
+  const sanitize = str => str.replace(/[<>:"/\\|?*]/g, '').trim().replace(/\s+/g, '_').slice(0, 40);
+
+  // Export headings follow the recording's own generation language, not
+  // necessarily the live UI language (see displayResult()'s contentDir).
+  const lang = currentMOM.language || getLanguage();
 
   let md, safeTitle;
   if (currentMOM.mode === 'notes') {
     const heading = currentMOM.title
       ? `# ${currentMOM.title}\n*${date} ${time}*`
-      : `# یادداشت\n*${date} ${time}*`;
+      : `${tFor('exportNoteHeading', lang)}\n*${date} ${time}*`;
     md = [
       heading, '',
-      '## یادداشت‌ها', currentMOM.notes || '—', '',
-      '---', '*تولید شده توسط PechPech*',
+      tFor('exportNotesSection', lang), currentMOM.notes || '—', '',
+      '---', tFor('exportGeneratedBy', lang),
     ].join('\n');
     safeTitle = currentMOM.title ? sanitize(currentMOM.title) : 'Notes';
   } else {
     const heading = currentMOM.title
       ? `# ${currentMOM.title} — ${date} ${time}`
-      : `# صورت‌جلسه — ${date} ${time}`;
+      : `${tFor('exportMomHeading', lang)} — ${date} ${time}`;
     md = [
       heading, '',
-      '## خلاصه', currentMOM.summary || '—', '',
-      '## تصمیمات', currentMOM.decisions || '—', '',
-      '## اقدامات', currentMOM.action_items || '—', '',
+      tFor('exportSummarySection', lang), currentMOM.summary || '—', '',
+      tFor('exportDecisionsSection', lang), currentMOM.decisions || '—', '',
+      tFor('exportActionsSection', lang), currentMOM.action_items || '—', '',
       ...(currentMOM.corrected_transcript ? [
-        '---', '## متن اصلاح‌شده', currentMOM.corrected_transcript, '',
+        '---', tFor('exportCorrectedSection', lang), currentMOM.corrected_transcript, '',
       ] : []),
-      '---', '*تولید شده توسط PechPech*',
+      '---', tFor('exportGeneratedBy', lang),
     ].join('\n');
     safeTitle = currentMOM.title ? sanitize(currentMOM.title) : 'MOM';
   }
@@ -787,9 +907,22 @@ el.btnTranscript.addEventListener('click', () => {
   el.transcriptChevron.classList.toggle('open', !open);
 });
 
+// ── Language toggle ───────────────────────────────────────────────
+
+el.langToggle.addEventListener('click', async () => {
+  const next = getLanguage() === 'fa' ? 'en' : 'fa';
+  await setLanguage(next);
+  applyTranslations(document);
+  applyModeToggle(currentMode);
+  loadRecordingsList();
+  if (currentMOM) displayResult(currentMOM);
+});
+
 // ── Init ──────────────────────────────────────────────────────────
 
 async function init() {
+  await bootLanguage();
+
   // Load persisted mode preference
   const { defaultMode } = await new Promise(r => chrome.storage.local.get(['defaultMode'], r));
   const saved = await loadSession();

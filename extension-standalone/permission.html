@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html class="lang-pending">
 <head>
   <meta charset="UTF-8" />
-  <title>دسترسی میکروفون — PechPech</title>
+  <script src="lang-pending.js"></script>
+  <title data-i18n="permPageTitle">Microphone Access — PechPech</title>
   <link rel="stylesheet" href="fonts.css" />
   <style>
+    html.lang-pending body { visibility: hidden; }
     :root {
       --v50:  #f5f3ff; --v100: #ede9fe; --v200: #ddd6fe; --v600: #7c3aed; --v700: #6d28d9;
       --g50:  #f9fafb; --g100: #f3f4f6; --g200: #e5e7eb; --g400: #9ca3af; --g500: #6b7280;
@@ -77,17 +79,17 @@
 <body>
   <div class="card">
     <div class="icon">🎙️</div>
-    <h1>دسترسی به میکروفون</h1>
-    <p class="sub">
-      برای ضبط صدای شما در کنار صدای جلسه، PechPech نیاز به دسترسی میکروفون دارد.
-      این دسترسی فقط مخصوص همین افزونه است و پس از تایید، دیگر لازم نیست تکرار شود.
+    <h1 data-i18n="permTitle">Microphone Access</h1>
+    <p class="sub" data-i18n="permBody">
+      To record your voice alongside the meeting audio, PechPech needs microphone access.
+      This permission is specific to this extension and won't be asked again once granted.
     </p>
 
     <div class="status" id="status"></div>
 
-    <button class="btn btn-primary" id="btn-grant">اعطای دسترسی میکروفون</button>
-    <button class="btn btn-outline hidden" id="btn-open-settings">باز کردن تنظیمات Chrome</button>
+    <button class="btn btn-primary" id="btn-grant" data-i18n="permGrant">Grant microphone access</button>
+    <button class="btn btn-outline hidden" id="btn-open-settings" data-i18n="permOpenSettings">Open Chrome settings</button>
   </div>
-  <script src="permission.js"></script>
+  <script type="module" src="permission.js"></script>
 </body>
 </html>

@@ -14,10 +14,8 @@
     "alarms"
   ],
   "host_permissions": [
-    "https://api.openai.com/*",
-    "https://generativelanguage.googleapis.com/*",
-    "http://localhost/*",
-    "http://127.0.0.1/*"
+    "http://*/*",
+    "https://*/*"
   ],
   "background": {
     "service_worker": "background.js",

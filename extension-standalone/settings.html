@@ -1,12 +1,15 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html class="lang-pending">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>تنظیمات — PechPech</title>
+  <script src="lang-pending.js"></script>
+  <title data-i18n="settingsPageTitle">Settings — PechPech</title>
   <link rel="stylesheet" href="fonts.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html.lang-pending body { visibility: hidden; }
 
     :root {
       --color-primary:      #1a56db;
@@ -235,7 +238,7 @@
       opacity: .6;
       font-size: 14px;
       line-height: 1;
-      padding: 0 0 0 2px;
+      padding-inline-start: 2px;
     }
     .domain-chip-remove:hover { opacity: 1; }
 
@@ -271,7 +274,7 @@
       font-size: 13px;
       font-weight: 600;
       color: var(--color-text);
-      text-align: right;
+      text-align: start;
     }
     .prompt-chevron {
       flex-shrink: 0;
@@ -330,53 +333,53 @@
     <!-- Header -->
     <div class="page-header">
       <div>
-        <h1>🎙️ PechPech — تنظیمات</h1>
-        <p>تنظیمات فقط در این دستگاه ذخیره می‌شوند و هرگز از آن خارج نمی‌شوند. بدون سرور — پردازش مستقیم از افزونه انجام می‌شود.</p>
+        <h1 data-i18n="settingsHeaderTitle">🎙️ PechPech — Settings</h1>
+        <p data-i18n="settingsHeaderSub">Settings are stored only on this device and never leave it. No server — processing happens directly from the extension.</p>
       </div>
     </div>
 
     <!-- STT Config -->
     <div class="card">
-      <div class="card-title">تبدیل گفتار به متن (STT)</div>
+      <div class="card-title" data-i18n="sttCardTitle">Speech-to-Text (STT)</div>
 
       <div class="field">
-        <label for="stt-provider">نوع سرویس</label>
+        <label for="stt-provider" data-i18n="sttProviderLabel">Service type</label>
         <select id="stt-provider">
-          <option value="custom">سرور محلی / سفارشی (Whisper-compatible)</option>
-          <option value="openai">OpenAI Whisper</option>
-          <option value="gemini">Google Gemini</option>
+          <option value="custom" data-i18n="sttProviderCustomOpt">Local / custom server (Whisper-compatible)</option>
+          <option value="openai" data-i18n="sttProviderOpenAIOpt">OpenAI Whisper</option>
+          <option value="gemini" data-i18n="sttProviderGeminiOpt">Google Gemini</option>
         </select>
-        <p class="field-hint">برای OpenAI و Gemini فقط کلید API و نام مدل لازم است.</p>
+        <p class="field-hint" data-i18n="sttProviderHint">For OpenAI and Gemini, only the API key and model name are needed.</p>
       </div>
 
       <div class="field" id="stt-url-field">
-        <label for="stt-url">آدرس پایه سرور STT</label>
+        <label for="stt-url" data-i18n="sttUrlLabel">STT server base URL</label>
         <input type="url" id="stt-url" placeholder="http://localhost:8080/v1" />
         <p class="field-hint">
-          سازگار با OpenAI Whisper API. مثال برای سرور محلی:
+          <span data-i18n="sttUrlHint">Compatible with the OpenAI Whisper API. Example for a local server:</span>
           <code style="font-family:monospace;direction:ltr">http://localhost:8080/v1</code>
         </p>
       </div>
 
       <div class="field">
-        <label for="stt-key">کلید API<span id="stt-key-optional-label"> (اختیاری)</span></label>
+        <label for="stt-key"><span data-i18n="apiKeyLabel">API Key</span><span id="stt-key-optional-label" data-i18n="optionalSuffix"> (optional)</span></label>
         <input type="password" id="stt-key" placeholder="sk-..." autocomplete="off" />
         <a href="#" target="_blank" rel="noopener" id="stt-key-link" class="api-key-link hidden">
-          Get API Key
+          <span data-i18n="getApiKey">Get API Key</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
             <polyline points="15 3 21 3 21 9"/>
             <line x1="10" y1="14" x2="21" y2="3"/>
           </svg>
         </a>
-        <p class="field-hint" id="stt-key-hint">برای سرور محلی خالی بگذارید. برای OpenAI / Groq وارد کنید.</p>
+        <p class="field-hint" id="stt-key-hint" data-i18n="sttKeyHintDefault">Leave empty for a local server. Enter it for OpenAI / Groq.</p>
       </div>
 
       <div class="field">
-        <label for="stt-model">نام مدل STT</label>
+        <label for="stt-model" data-i18n="sttModelLabel">STT model name</label>
         <input type="text" id="stt-model" placeholder="whisper-1" />
-        <p class="field-hint" id="stt-model-hint">
-          پیش‌فرض: <code>whisper-1</code> (OpenAI) &nbsp;|&nbsp;
+        <p class="field-hint" id="stt-model-hint" data-i18n-html="sttModelHintDefault">
+          Default: <code>whisper-1</code> (OpenAI) &nbsp;|&nbsp;
           GapGPT: <code>whisper-large-v3</code>
         </p>
       </div>
@@ -384,29 +387,29 @@
 
     <!-- LLM Config -->
     <div class="card">
-      <div class="card-title">مدل زبانی (LLM)</div>
+      <div class="card-title" data-i18n="llmCardTitle">Language Model (LLM)</div>
 
       <div class="field">
-        <label for="llm-cli">نوع اتصال</label>
+        <label for="llm-cli" data-i18n="llmTypeLabel">Connection type</label>
         <select id="llm-cli">
-          <option value="openai">OpenAI (ChatGPT)</option>
-          <option value="gemini-api">Google Gemini</option>
-          <option value="api">Custom API (OpenAI-compatible)</option>
+          <option value="openai" data-i18n="llmOpenAIOpt">OpenAI (ChatGPT)</option>
+          <option value="gemini-api" data-i18n="llmGeminiOpt">Google Gemini</option>
+          <option value="api" data-i18n="llmCustomApiOpt">Custom API (OpenAI-compatible)</option>
         </select>
-        <p class="field-hint">برای OpenAI و Gemini فقط کلید API و نام مدل لازم است.</p>
+        <p class="field-hint" data-i18n="sttProviderHint">For OpenAI and Gemini, only the API key and model name are needed.</p>
       </div>
 
       <div id="api-fields">
         <div class="field" id="api-url-field">
-          <label for="llm-api-url">آدرس پایه API</label>
+          <label for="llm-api-url" data-i18n="apiUrlLabel">API base URL</label>
           <input type="url" id="llm-api-url" placeholder="https://api.openai.com/v1" />
-          <p class="field-hint">سازگار با OpenAI Chat Completions API.</p>
+          <p class="field-hint" data-i18n="apiUrlHint">Compatible with the OpenAI Chat Completions API.</p>
         </div>
         <div class="field">
-          <label for="llm-api-key">کلید API</label>
+          <label for="llm-api-key" data-i18n="apiKeyLabel">API Key</label>
           <input type="password" id="llm-api-key" placeholder="sk-..." autocomplete="off" />
           <a href="#" target="_blank" rel="noopener" id="llm-api-key-link" class="api-key-link hidden">
-            Get API Key
+            <span data-i18n="getApiKey">Get API Key</span>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
               <polyline points="15 3 21 3 21 9"/>
@@ -416,67 +419,84 @@
           <p class="field-hint" id="llm-api-key-hint"></p>
         </div>
         <div class="field">
-          <label for="llm-api-model">نام مدل</label>
+          <label for="llm-api-model" data-i18n="modelNameLabel">Model name</label>
           <input type="text" id="llm-api-model" placeholder="gpt-4o" />
-          <p class="field-hint" id="llm-api-model-hint">پیش‌فرض: <code>gpt-4o</code></p>
+          <p class="field-hint" id="llm-api-model-hint" data-i18n-html="modelDefaultHint">Default: <code>gpt-4o</code></p>
         </div>
+      </div>
+    </div>
+
+    <!-- Recording -->
+    <div class="card">
+      <div class="card-title" data-i18n="recordingCardTitle">Recording</div>
+
+      <div class="field">
+        <label for="audio-quality" data-i18n="audioQualityLabel">Audio quality</label>
+        <select id="audio-quality">
+          <option value="standard" data-i18n="audioQualityStandardOpt">Standard (64 kbps)</option>
+          <option value="compact" data-i18n="audioQualityCompactOpt">Compact (32 kbps)</option>
+        </select>
+        <p class="field-hint" data-i18n="audioQualityHint">Applies to new recordings only. Standard gives the best transcription accuracy — up to about 28 MB per hour of meeting. Compact roughly halves the file (up to about 13 MB per hour) so long meetings upload faster on a slow connection and fit provider size limits (OpenAI: 25 MB), but may slightly reduce accuracy. A recording can't be improved after it's made.</p>
       </div>
     </div>
 
     <!-- Prompts -->
     <div class="card">
-      <div class="card-title">پرامپت‌ها</div>
+      <div class="card-title" data-i18n="promptsCardTitle">Prompts</div>
 
       <div class="prompt-accordion">
         <button type="button" class="prompt-header" data-prompt="mom">
-          <span>پرامپت خلاصه جلسه (MOM)</span>
+          <span data-i18n="promptMomTitle">Meeting minutes (MOM) prompt</span>
           <svg class="prompt-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </button>
         <div class="prompt-body hidden">
-          <p class="field-hint">
-            خطوط شروع‌شده با <code>##</code> و متن <code>{{transcript}}</code> را تغییر ندهید — در غیر این صورت خروجی درست پردازش نمی‌شود.
+          <p class="field-hint" data-i18n-html="promptWarning">
+            Don't change lines starting with <code>##</code> or the <code>{{transcript}}</code> placeholder — otherwise the output won't parse correctly.
           </p>
+          <p class="field-hint" data-i18n="promptOverrideHint"></p>
           <textarea id="prompt-mom" rows="10" dir="ltr" spellcheck="false"></textarea>
           <div class="btn-row" style="margin-top:8px">
-            <button type="button" class="btn btn-outline btn-sm" data-reset-prompt="mom">بازنشانی به پیش‌فرض</button>
+            <button type="button" class="btn btn-outline btn-sm" data-reset-prompt="mom" data-i18n="resetToDefault">Reset to default</button>
           </div>
         </div>
       </div>
 
       <div class="prompt-accordion">
         <button type="button" class="prompt-header" data-prompt="notes">
-          <span>پرامپت یادداشت‌ها</span>
+          <span data-i18n="promptNotesTitle">Notes prompt</span>
           <svg class="prompt-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </button>
         <div class="prompt-body hidden">
-          <p class="field-hint">
-            خطوط شروع‌شده با <code>##</code> و متن <code>{{transcript}}</code> را تغییر ندهید — در غیر این صورت خروجی درست پردازش نمی‌شود.
+          <p class="field-hint" data-i18n-html="promptWarning">
+            Don't change lines starting with <code>##</code> or the <code>{{transcript}}</code> placeholder — otherwise the output won't parse correctly.
           </p>
+          <p class="field-hint" data-i18n="promptOverrideHint"></p>
           <textarea id="prompt-notes" rows="10" dir="ltr" spellcheck="false"></textarea>
           <div class="btn-row" style="margin-top:8px">
-            <button type="button" class="btn btn-outline btn-sm" data-reset-prompt="notes">بازنشانی به پیش‌فرض</button>
+            <button type="button" class="btn btn-outline btn-sm" data-reset-prompt="notes" data-i18n="resetToDefault">Reset to default</button>
           </div>
         </div>
       </div>
 
       <div class="prompt-accordion">
         <button type="button" class="prompt-header" data-prompt="correction">
-          <span>پرامپت اصلاح متن و تشخیص گوینده‌ها</span>
+          <span data-i18n="promptCorrectionTitle">Transcript correction &amp; speaker-separation prompt</span>
           <svg class="prompt-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
         </button>
         <div class="prompt-body hidden">
-          <p class="field-hint">
-            خطوط شروع‌شده با <code>##</code> و متن <code>{{transcript}}</code> را تغییر ندهید — در غیر این صورت خروجی درست پردازش نمی‌شود.
+          <p class="field-hint" data-i18n-html="promptWarning">
+            Don't change lines starting with <code>##</code> or the <code>{{transcript}}</code> placeholder — otherwise the output won't parse correctly.
           </p>
+          <p class="field-hint" data-i18n="promptOverrideHint"></p>
           <textarea id="prompt-correction" rows="10" dir="ltr" spellcheck="false"></textarea>
           <div class="btn-row" style="margin-top:8px">
-            <button type="button" class="btn btn-outline btn-sm" data-reset-prompt="correction">بازنشانی به پیش‌فرض</button>
+            <button type="button" class="btn btn-outline btn-sm" data-reset-prompt="correction" data-i18n="resetToDefault">Reset to default</button>
           </div>
         </div>
       </div>
@@ -484,10 +504,10 @@
 
     <!-- Meeting Detection -->
     <div class="card">
-      <div class="card-title">تشخیص ورود به کال</div>
+      <div class="card-title" data-i18n="meetingDetectionCardTitle">Call-Join Detection</div>
 
       <div class="field">
-        <label>دامنه‌های پیش‌فرض</label>
+        <label data-i18n="defaultDomainsLabel">Default domains</label>
         <div class="domain-chips">
           <span class="domain-chip domain-chip--default">meet.google.com</span>
           <span class="domain-chip domain-chip--default">zoom.us</span>
@@ -495,19 +515,19 @@
           <span class="domain-chip domain-chip--default">teams.live.com</span>
           <span class="domain-chip domain-chip--default">web.skype.com</span>
         </div>
-        <p class="field-hint">همیشه فعال هستند و قابل حذف نیستند.</p>
+        <p class="field-hint" data-i18n="defaultDomainsHint">Always enabled and cannot be removed.</p>
       </div>
 
       <div class="divider"></div>
 
       <div class="field">
-        <label for="domain-input">افزودن دامنه سفارشی</label>
+        <label for="domain-input" data-i18n="addCustomDomainLabel">Add custom domain</label>
         <div class="domain-input-row">
           <input type="text" id="domain-input" placeholder="app.mymeeting.com" dir="ltr" />
-          <button type="button" id="btn-add-domain" class="btn btn-outline">افزودن</button>
+          <button type="button" id="btn-add-domain" class="btn btn-outline" data-i18n="add">Add</button>
         </div>
         <div class="domain-chips" id="custom-domains-list"></div>
-        <p class="field-hint">فقط نام دامنه بدون https:// — مثلاً <code>whereby.com</code></p>
+        <p class="field-hint" data-i18n-html="domainInputHint">Domain name only, no https:// — e.g. <code>whereby.com</code></p>
       </div>
     </div>
 
@@ -519,13 +539,13 @@
           <polyline points="17 21 17 13 7 13 7 21"/>
           <polyline points="7 3 7 8 15 8"/>
         </svg>
-        ذخیره تنظیمات
+        <span data-i18n="saveSettings">Save settings</span>
       </button>
-      <button id="btn-reset" class="btn btn-outline">بازنشانی</button>
+      <button id="btn-reset" class="btn btn-outline" data-i18n="reset">Reset</button>
     </div>
 
-    <div id="toast-saved" class="toast">
-      ✓ تنظیمات با موفقیت ذخیره شد.
+    <div id="toast-saved" class="toast" data-i18n="savedToast">
+      ✓ Settings saved successfully.
     </div>
   </div>
 

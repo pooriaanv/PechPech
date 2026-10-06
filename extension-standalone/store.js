@@ -55,6 +55,7 @@ async function createRecording({ audioBlob, mimeType }) {
     createdAt:            Date.now(),
     title:                null,
     mode:                 null,
+    language:             null,
     notes:                null,
     transcript:           null,
     summary:              null,

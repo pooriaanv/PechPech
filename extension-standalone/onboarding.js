@@ -1,9 +1,15 @@
 'use strict';
 
-const TOTAL   = 5;
-const FA_NUMS = ['۱','۲','۳','۴','۵'];
+import { t, getLanguage, bootLanguage } from './i18n.js';
+
+const TOTAL = 5;
 
 let current = 0;
+
+function stepNum(n) {
+  const s = String(n);
+  return getLanguage() === 'fa' ? s.replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]) : s;
+}
 
 // ── Navigation ────────────────────────────────────────────────────
 
@@ -17,7 +23,7 @@ function goTo(n) {
     const pip = document.getElementById('pip-' + i);
     const lbl = document.getElementById('lbl-' + i);
     pip.className = 'step-pip' + (i < n ? ' done' : i === n ? ' active' : '');
-    pip.textContent = i < n ? '✓' : FA_NUMS[i];
+    pip.textContent = i < n ? '✓' : stepNum(i + 1);
     lbl.className = 'step-lbl' + (i < n ? ' done' : i === n ? ' active' : '');
   }
   for (let i = 0; i < TOTAL - 1; i++) {
@@ -31,7 +37,7 @@ function goTo(n) {
   document.getElementById('btn-next').classList.toggle('hidden', n === TOTAL - 1);
   document.getElementById('btn-done').classList.toggle('hidden', n !== TOTAL - 1);
   document.getElementById('nav-progress').textContent =
-    'مرحله ' + FA_NUMS[n] + ' از ' + FA_NUMS[TOTAL - 1];
+    t('stepProgress', { n: stepNum(n + 1), total: stepNum(TOTAL) });
 
   if (n === 3) checkConfigured();
 }
@@ -52,7 +58,7 @@ async function checkConfigured() {
 
   status.className  = 'conn-status checking';
   dot.className     = 'conn-dot pulse';
-  text.textContent  = 'در حال بررسی تنظیمات…';
+  text.textContent  = t('checkingConfig');
 
   const cfg = await new Promise(r =>
     chrome.storage.local.get(['sttProvider', 'sttKey', 'llmCli', 'llmApiKey'], r)
@@ -65,19 +71,15 @@ async function checkConfigured() {
   if (sttOk && llmOk) {
     status.className  = 'conn-status ok';
     dot.className     = 'conn-dot';
-    text.textContent  = 'STT و LLM هر دو پیکربندی شده‌اند ✓';
-    info.innerHTML     =
-      '<strong>همه چیز آماده است!</strong><br/>' +
-      'می‌توانید به مرحله بعد بروید و اولین جلسه را ضبط کنید.';
+    text.textContent  = t('bothConfigured');
+    info.innerHTML     = t('allReadyBody');
   } else {
     status.className  = 'conn-status fail';
     dot.className     = 'conn-dot';
-    const missing = [!sttOk && 'STT', !llmOk && 'LLM'].filter(Boolean).join(' و ');
-    text.textContent  = `کلید ${missing} هنوز تنظیم نشده است`;
-    info.innerHTML     =
-      '<strong>هنوز کلیدی وارد نکرده‌اید؟</strong><br/>' +
-      'روی «باز کردن تنظیمات افزونه» بزنید، کلید STT و LLM را وارد و ذخیره کنید،<br/>' +
-      'سپس دکمه «بررسی مجدد» را بزنید.';
+    const missingParts = [!sttOk && 'STT', !llmOk && 'LLM'].filter(Boolean);
+    const sep = getLanguage() === 'fa' ? ' و ' : ' and ';
+    text.textContent  = t('missingKeyText', { missing: missingParts.join(sep) });
+    info.innerHTML     = t('noKeysBody');
   }
 }
 
@@ -85,3 +87,8 @@ document.getElementById('btn-recheck').addEventListener('click', checkConfigured
 document.getElementById('btn-settings').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
+
+(async () => {
+  await bootLanguage();
+  goTo(0);
+})();

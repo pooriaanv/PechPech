@@ -4,6 +4,14 @@
 // reach the server, so it must be available before any network call.
 // All other config (STT, LLM) lives in src/backend-server/config.json,
 // read and written via GET /config and POST /config.
+//
+// NOTE on prompt defaults (see i18n conversion report): unlike
+// extension-standalone/settings.js, this file has no prompt textareas or
+// "reset to default" button at all — there is no prompts UI here to make
+// language-reactive. Default prompt text (if any) lives entirely on the
+// server side (GET/POST /config), which is out of scope for this pass.
+
+import { t, getLanguage, bootLanguage } from './i18n.js';
 
 // ── DOM Refs ──────────────────────────────────────────────────────
 const sttProviderEl = document.getElementById('stt-provider');
@@ -40,7 +48,7 @@ function renderCustomDomains() {
   customList.innerHTML = customDomains.map((d, i) => `
     <span class="domain-chip domain-chip--custom">
       ${d}
-      <button class="domain-chip-remove" data-idx="${i}" title="حذف">×</button>
+      <button class="domain-chip-remove" data-idx="${i}" title="${t('deleteTitle')}">×</button>
     </span>`).join('');
   customList.querySelectorAll('.domain-chip-remove').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -73,12 +81,12 @@ const API_KEY_LINK   = document.getElementById('llm-api-key-link');
 const API_PRESETS = {
   openai: {
     modelPlaceholder: 'gpt-4o',
-    keyHint:          'کلید API از platform.openai.com',
+    keyHintKey:       'keyHintOpenAI',
     keyLinkUrl:       'https://platform.openai.com/api-keys',
   },
   'gemini-api': {
     modelPlaceholder: 'gemini-3.6-flash',
-    keyHint:          'کلید API از aistudio.google.com',
+    keyHintKey:       'keyHintGemini',
     keyLinkUrl:       'https://aistudio.google.com/apikey',
   },
 };
@@ -93,8 +101,8 @@ function updateLLMFields() {
 
   const preset = API_PRESETS[v];
   llmApiModelEl.placeholder = preset?.modelPlaceholder || 'gpt-4o';
-  API_MODEL_HINT.innerHTML  = `پیش‌فرض: <code>${preset?.modelPlaceholder || 'gpt-4o'}</code>`;
-  API_KEY_HINT.textContent  = preset?.keyHint || '';
+  API_MODEL_HINT.innerHTML  = t('defaultModelHint', { model: preset?.modelPlaceholder || 'gpt-4o' });
+  API_KEY_HINT.textContent  = preset ? t(preset.keyHintKey) : '';
 
   if (preset?.keyLinkUrl) {
     API_KEY_LINK.href = preset.keyLinkUrl;
@@ -115,8 +123,8 @@ const STT_KEY_LINK        = document.getElementById('stt-key-link');
 
 const STT_DEFAULT_HINT = {
   modelPlaceholder: 'whisper-1',
-  modelHint:  'پیش‌فرض: <code>whisper-1</code> (OpenAI) &nbsp;|&nbsp; GapGPT: <code>whisper-large-v3</code>',
-  keyHint:    'برای سرور محلی خالی بگذارید. برای OpenAI / Groq وارد کنید.',
+  modelHintKey: 'sttModelHintDefault',
+  keyHintKey:   'sttKeyHintDefault',
   keyOptional: true,
 };
 
@@ -124,15 +132,17 @@ const STT_DEFAULT_HINT = {
 const STT_PRESETS = {
   openai: {
     modelPlaceholder: 'whisper-1',
-    modelHint:  'پیش‌فرض: <code>whisper-1</code>',
-    keyHint:    'کلید API از platform.openai.com — الزامی است.',
+    modelHintKey: 'defaultModelHint',
+    modelHintVars: { model: 'whisper-1' },
+    keyHintKey:   'sttKeyHintOpenAIRequired',
     keyOptional: false,
     keyLinkUrl: 'https://platform.openai.com/api-keys',
   },
   gemini: {
     modelPlaceholder: 'gemini-3.6-flash',
-    modelHint:  'پیش‌فرض: <code>gemini-3.6-flash</code>',
-    keyHint:    'کلید API از aistudio.google.com — الزامی است.',
+    modelHintKey: 'defaultModelHint',
+    modelHintVars: { model: 'gemini-3.6-flash' },
+    keyHintKey:   'sttKeyHintGeminiRequired',
     keyOptional: false,
     keyLinkUrl: 'https://aistudio.google.com/apikey',
   },
@@ -144,8 +154,8 @@ function updateSTTFields() {
 
   const preset = STT_PRESETS[v] || STT_DEFAULT_HINT;
   sttModelEl.placeholder = preset.modelPlaceholder;
-  STT_MODEL_HINT.innerHTML = preset.modelHint;
-  STT_KEY_HINT.textContent = preset.keyHint;
+  STT_MODEL_HINT.innerHTML = t(preset.modelHintKey, preset.modelHintVars);
+  STT_KEY_HINT.textContent = t(preset.keyHintKey);
   STT_KEY_OPTIONAL_LBL.classList.toggle('hidden', !preset.keyOptional);
 
   if (preset.keyLinkUrl) {
@@ -207,7 +217,7 @@ async function loadSettings() {
 
     hideServerError();
   } catch {
-    showServerError(`Cannot reach PechPech server at localhost:${port}. Start it first, then reload this page.`);
+    showServerError(t('settingsServerUnreachable', { port }));
   }
 
   updateSTTFields();
@@ -252,13 +262,13 @@ async function saveSettings() {
     hideServerError();
     showToast();
   } catch (err) {
-    showServerError(`Could not save to server: ${err.message}`);
+    showServerError(t('settingsSaveFailed', { message: err.message }));
   }
 }
 
 // ── Reset to defaults ─────────────────────────────────────────────
 async function resetSettings() {
-  if (!confirm('تنظیمات به حالت پیش‌فرض بازنشانی شود؟')) return;
+  if (!confirm(t('confirmReset'))) return;
   const port = await getStoredPort();
 
   try {
@@ -274,16 +284,16 @@ async function resetSettings() {
     });
     if (!res.ok) throw new Error(`Server error ${res.status}`);
     await loadSettings();
-    showToast('تنظیمات بازنشانی شد.');
+    showToast(t('resetToast'));
   } catch (err) {
-    showServerError(`Could not reset: ${err.message}`);
+    showServerError(t('settingsResetFailed', { message: err.message }));
   }
 }
 
 // ── Toast notification ────────────────────────────────────────────
 let toastTimeout = null;
 function showToast(message) {
-  toastSaved.textContent = '✓ ' + (message || 'تنظیمات با موفقیت ذخیره شد.');
+  toastSaved.textContent = message ? ('✓ ' + message) : t('savedToast');
   toastSaved.classList.add('visible');
   if (toastTimeout) clearTimeout(toastTimeout);
   toastTimeout = setTimeout(() => toastSaved.classList.remove('visible'), 3000);
@@ -296,4 +306,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveSettings();
 });
 
-loadSettings();
+(async () => {
+  await bootLanguage();
+  await loadSettings();
+})();

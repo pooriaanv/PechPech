@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html class="lang-pending">
 <head>
   <meta charset="UTF-8" />
+  <script src="lang-pending.js"></script>
   <title>PechPech</title>
   <link rel="stylesheet" href="fonts.css">
   <link rel="stylesheet" href="popup.css" />
@@ -22,22 +23,36 @@
       </div>
       <span class="brand-name">PechPech</span>
     </div>
-    <a href="settings.html" target="_blank" class="settings-btn" title="تنظیمات">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
-    </a>
+    <div class="header-actions">
+      <button id="lang-toggle-btn" type="button" class="settings-btn" data-i18n-attr="title:toggleLanguageTitle,aria-label:toggleLanguageTitle">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3.5 14 7 3.5 10.5 14"/>
+          <path d="M4.7 10h5.6"/>
+          <line x1="3.2" y1="16" x2="10.8" y2="16"/>
+          <path d="M13 12h7"/>
+          <path d="M16.5 12v9"/>
+          <path d="M13.5 16.3h6"/>
+          <path d="M14.7 21 12.5 17.8"/>
+          <path d="M18.3 21 20.5 17.8"/>
+        </svg>
+      </button>
+      <a href="settings.html" target="_blank" class="settings-btn" data-i18n-attr="title:settingsTitle,aria-label:settingsTitle">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </a>
+    </div>
   </header>
 
   <!-- ── Idle ── -->
   <div id="state-idle" class="state">
-    <div class="mode-toggle" id="mode-toggle" dir="rtl" role="group" aria-label="حالت پردازش">
-      <button class="mode-toggle-btn active" data-mode="mom" aria-pressed="true">جلسه</button>
-      <button class="mode-toggle-btn" data-mode="notes" aria-pressed="false">یادداشت</button>
+    <div class="mode-toggle" id="mode-toggle" role="group" data-i18n-attr="aria-label:modeGroupLabel">
+      <button class="mode-toggle-btn active" data-mode="mom" aria-pressed="true" data-i18n="modeMeeting">Meeting</button>
+      <button class="mode-toggle-btn" data-mode="notes" aria-pressed="false" data-i18n="modeNotes">Notes</button>
     </div>
     <div class="hero">
-      <button id="btn-start" class="record-btn" aria-label="شروع ضبط">
+      <button id="btn-start" class="record-btn" data-i18n-attr="aria-label:startRecordingAria">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
           <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
@@ -45,13 +60,13 @@
           <line x1="8" y1="23" x2="16" y2="23"/>
         </svg>
       </button>
-      <span id="hero-label" class="hero-label">شروع ضبط جلسه</span>
+      <span id="hero-label" class="hero-label" data-i18n="heroLabelMom">Start recording meeting</span>
     </div>
 
     <div class="list-section">
       <div class="list-header">
-        <span class="list-title">ضبط‌های اخیر</span>
-        <button id="btn-refresh" class="ghost-icon-btn" title="بازخوانی">
+        <span class="list-title" data-i18n="recentRecordings">Recent recordings</span>
+        <button id="btn-refresh" class="ghost-icon-btn" data-i18n-attr="title:refreshTitle">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
             <polyline points="23 4 23 10 17 10"/>
             <polyline points="1 20 1 14 7 14"/>
@@ -60,7 +75,7 @@
         </button>
       </div>
       <div id="recordings-list" class="recordings-list">
-        <div class="rec-empty">در حال بارگذاری…</div>
+        <div class="rec-empty" data-i18n="loading">Loading…</div>
       </div>
     </div>
   </div>
@@ -76,15 +91,15 @@
       </div>
       <div class="rec-info">
         <span class="rec-live">● REC</span>
-        <span id="elapsed-time" class="rec-timer">۰۰:۰۰</span>
+        <span id="elapsed-time" class="rec-timer">00:00</span>
       </div>
     </div>
-    <div id="rec-mode-indicator" class="rec-mode-indicator" dir="rtl">حالت: <span id="rec-mode-label">جلسه</span></div>
+    <div id="rec-mode-indicator" class="rec-mode-indicator"><span data-i18n="recModeLabelPrefix">Mode:</span> <span id="rec-mode-label" data-i18n="modeMeeting">Meeting</span></div>
     <button id="btn-stop" class="stop-btn">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
         <rect x="3" y="3" width="18" height="18" rx="3"/>
       </svg>
-      توقف و ذخیره
+      <span data-i18n="stopAndSave">Stop &amp; Save</span>
     </button>
   </div>
 
@@ -93,42 +108,42 @@
     <div class="steps-wrap">
       <div id="step-transcribe" class="step-item">
         <div class="step-circle">🎤</div>
-        <span class="step-label">رونویسی</span>
+        <span class="step-label" data-i18n="stepTranscribe">Transcribing</span>
       </div>
       <div class="step-line"></div>
       <div id="step-summarize" class="step-item">
         <div class="step-circle">📝</div>
-        <span class="step-label">تحلیل</span>
+        <span class="step-label" data-i18n="stepAnalyze">Analysis</span>
       </div>
     </div>
-    <p id="processing-message" class="processing-msg">در حال پردازش…</p>
-    <p class="processing-note">می‌توانید این پنجره را ببندید، پردازش ادامه می‌یابد.</p>
-    <button id="btn-cancel-processing" class="btn btn-ghost">لغو پردازش</button>
+    <p id="processing-message" class="processing-msg" data-i18n="processingDefault">Processing…</p>
+    <p class="processing-note" data-i18n="processingNote">You can close this window — processing continues.</p>
+    <button id="btn-cancel-processing" class="btn btn-ghost" data-i18n="cancelProcessing">Cancel processing</button>
   </div>
 
   <!-- ── Result ── -->
   <div id="state-result" class="state hidden">
     <div id="mom-card" class="mom-card">
       <div class="mom-block">
-        <div class="mom-block-head"><span class="mom-icon">📋</span><span class="mom-label">خلاصه</span></div>
+        <div class="mom-block-head"><span class="mom-icon">📋</span><span class="mom-label" data-i18n="summary">Summary</span></div>
         <p id="result-summary" class="mom-text"></p>
       </div>
       <div class="mom-divider"></div>
       <div class="mom-block">
-        <div class="mom-block-head"><span class="mom-icon">✅</span><span class="mom-label">تصمیمات</span></div>
+        <div class="mom-block-head"><span class="mom-icon">✅</span><span class="mom-label" data-i18n="decisions">Decisions</span></div>
         <p id="result-decisions" class="mom-text"></p>
       </div>
       <div class="mom-divider"></div>
       <div class="mom-block">
-        <div class="mom-block-head"><span class="mom-icon">📌</span><span class="mom-label">اقدامات</span></div>
+        <div class="mom-block-head"><span class="mom-icon">📌</span><span class="mom-label" data-i18n="actionItems">Action Items</span></div>
         <p id="result-actions" class="mom-text"></p>
       </div>
     </div>
     <div id="notes-card" class="notes-card hidden">
       <div class="notes-block">
-        <div class="notes-block-head"><span class="notes-label">یادداشت‌ها</span></div>
-        <ul id="result-notes-list" class="notes-list" dir="rtl"></ul>
-        <p id="result-notes-empty" class="notes-empty-msg hidden">یادداشتی در این ضبط یافت نشد.</p>
+        <div class="notes-block-head"><span class="notes-label" data-i18n="notesLabel">Notes</span></div>
+        <ul id="result-notes-list" class="notes-list"></ul>
+        <p id="result-notes-empty" class="notes-empty-msg hidden" data-i18n="notesEmpty">No notes found in this recording.</p>
       </div>
     </div>
     <div id="transcript-section" class="transcript-section">
@@ -136,20 +151,20 @@
       <div id="transcript-request">
         <button id="btn-correct" class="transcript-toggle transcript-request-btn">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          <span>اصلاح و تفکیک گوینده‌ها</span>
+          <span data-i18n="correctTranscript">Correct &amp; separate speakers</span>
         </button>
       </div>
       <!-- state: correcting (loading) -->
       <div id="transcript-loading" class="hidden">
         <div class="transcript-toggle transcript-loading-row">
           <svg class="spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-          <span>در حال اصلاح متن…</span>
+          <span data-i18n="correcting">Correcting text…</span>
         </div>
       </div>
       <!-- state: done (collapsible) -->
       <div id="transcript-done" class="hidden">
         <button id="btn-transcript-toggle" class="transcript-toggle">
-          <span>متن اصلاح‌شده</span>
+          <span data-i18n="correctedTranscript">Corrected text</span>
           <svg id="transcript-chevron" class="chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div id="result-transcript" class="transcript-body hidden"></div>
@@ -163,9 +178,9 @@
           <polyline points="7 10 12 15 17 10"/>
           <line x1="12" y1="15" x2="12" y2="3"/>
         </svg>
-        ذخیره .md
+        <span data-i18n="saveMd">Save .md</span>
       </button>
-      <button id="btn-new" class="btn btn-ghost">← بازگشت</button>
+      <button id="btn-new" class="btn btn-ghost" data-i18n="back">← Back</button>
     </div>
   </div>
 
@@ -175,10 +190,10 @@
       <span class="error-emoji">⚠️</span>
       <p id="error-message" class="error-text"></p>
     </div>
-    <button id="btn-retry" class="btn btn-ghost">← بازگشت</button>
+    <button id="btn-retry" class="btn btn-ghost" data-i18n="back">← Back</button>
   </div>
 
 </div>
-<script src="popup.js"></script>
+<script type="module" src="popup.js"></script>
 </body>
 </html>

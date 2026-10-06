@@ -5,6 +5,8 @@
 // permission bubble steals focus, so this is the reliable place to grant
 // the extension's microphone permission for the first time.
 
+import { t, bootLanguage } from './i18n.js';
+
 const statusEl    = document.getElementById('status');
 const btnGrant    = document.getElementById('btn-grant');
 const btnSettings = document.getElementById('btn-open-settings');
@@ -18,15 +20,15 @@ async function requestMic() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     stream.getTracks().forEach(t => t.stop());
-    showStatus('granted', '✓ دسترسی داده شد. می‌توانید این تب را ببندید و به افزونه برگردید.');
+    showStatus('granted', t('permGranted'));
     btnGrant.classList.add('hidden');
     btnSettings.classList.add('hidden');
   } catch (err) {
     if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-      showStatus('denied', 'دسترسی رد شد. برای فعال‌سازی دستی، روی دکمه زیر بزنید و «Microphone» را روی Allow بگذارید.');
+      showStatus('denied', t('permDeniedManual'));
       btnSettings.classList.remove('hidden');
     } else {
-      showStatus('denied', `خطا: ${err.message}`);
+      showStatus('denied', t('permError', { message: err.message }));
     }
   }
 }
@@ -41,17 +43,19 @@ btnSettings.addEventListener('click', () => {
 // On load: check current state first so we don't ask again if already
 // decided, and auto-trigger the native prompt if it's still undecided.
 (async () => {
+  await bootLanguage();
+
   try {
     const status = await navigator.permissions.query({ name: 'microphone' });
 
     if (status.state === 'granted') {
-      showStatus('granted', '✓ دسترسی از قبل فعال است. می‌توانید این تب را ببندید.');
+      showStatus('granted', t('permAlreadyGranted'));
       btnGrant.classList.add('hidden');
       return;
     }
 
     if (status.state === 'denied') {
-      showStatus('denied', 'دسترسی میکروفون قبلاً رد شده است. برای فعال‌سازی، روی دکمه زیر بزنید.');
+      showStatus('denied', t('permAlreadyDenied'));
       btnGrant.classList.add('hidden');
       btnSettings.classList.remove('hidden');
       return;

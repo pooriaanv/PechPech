@@ -6,6 +6,20 @@
  * chrome.storage.session so it survives service worker restarts.
  */
 
+import { t, initLanguage, setLanguageLocal } from './i18n.js';
+
+// Keeps this service worker's copy of the language dictionary in sync with
+// whatever the popup/settings last saved — a service worker has no DOM to
+// re-read on demand, so notification/tooltip strings need a live cache
+// rather than an async storage read per call. Mirrors the existing
+// _customMeetingDomains cache pattern below.
+initLanguage();
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.language) {
+    setLanguageLocal(changes.language.newValue);
+  }
+});
+
 const OFFSCREEN_URL   = chrome.runtime.getURL('offscreen.html');
 const ONBOARDING_URL  = chrome.runtime.getURL('onboarding.html');
 
@@ -108,7 +122,7 @@ async function handleStart(sendResponse) {
     if (!docAlive) {
       await clearState();
     } else {
-      sendResponse({ success: false, error: 'در حال حاضر ضبط در جریان است.' });
+      sendResponse({ success: false, error: t('bgAlreadyRecording') });
       return;
     }
   }
@@ -116,7 +130,7 @@ async function handleStart(sendResponse) {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) {
-      sendResponse({ success: false, error: 'تب فعالی یافت نشد.' });
+      sendResponse({ success: false, error: t('bgNoActiveTab') });
       return;
     }
 
@@ -155,7 +169,7 @@ async function handleStop(sendResponse) {
   const state = await readState();
 
   if (!state.isRecording) {
-    sendResponse({ success: false, error: 'ضبطی در جریان نیست.' });
+    sendResponse({ success: false, error: t('bgNoRecordingInProgress') });
     return;
   }
 
@@ -167,7 +181,7 @@ async function handleStop(sendResponse) {
     await clearState();
     sendResponse({
       success: false,
-      error:   'ضبط به دلیل ری‌استارت مرورگر از دست رفت. لطفاً دوباره شروع کنید.',
+      error:   t('bgRecordingLost'),
     });
     return;
   }
@@ -180,7 +194,7 @@ async function handleStop(sendResponse) {
     // Safety timeout: offscreen encodes + uploads to localhost (fast), but give 3 min for huge files
     setTimeout(async () => {
       if (stopResolver) {
-        stopResolver({ success: false, error: 'زمان انتظار برای ذخیره ضبط به پایان رسید.' });
+        stopResolver({ success: false, error: t('bgSaveTimedOut') });
         stopResolver = null;
         await clearState();
         closeOffscreenDocument();
@@ -284,7 +298,7 @@ const _badgedTabs = new Set();
 function setMeetingBadge(tabId) {
   chrome.action.setBadgeText({ text: '●', tabId });
   chrome.action.setBadgeBackgroundColor({ color: '#dc2626', tabId });
-  chrome.action.setTitle({ tabId, title: 'جلسه شناسایی شد — برای ضبط روی آیکون کلیک کنید' });
+  chrome.action.setTitle({ tabId, title: t('bgMeetingDetectedTooltip') });
   _badgedTabs.add(tabId);
 }
 
@@ -322,8 +336,8 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   chrome.notifications.create('meeting-detected', {
     type:    'basic',
     iconUrl: 'icons/icon128.png',
-    title:   'PechPech',
-    message: 'وارد کال شدی — ضبط رو شروع کنی؟',
+    title:   t('bgNotifTitle'),
+    message: t('bgNotifBody'),
   });
 });
 

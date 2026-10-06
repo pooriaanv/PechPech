@@ -1,12 +1,15 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html class="lang-pending">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PechPech — راه‌اندازی</title>
+  <script src="lang-pending.js"></script>
+  <title data-i18n="onboardingPageTitle">PechPech — Setup</title>
   <link rel="stylesheet" href="fonts.css" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html.lang-pending body { visibility: hidden; }
 
     :root {
       --v50:  #f5f3ff; --v100: #ede9fe; --v200: #ddd6fe;
@@ -193,7 +196,6 @@
     .arch-flow-label {
       font-size: 11px; font-weight: 600;
       color: var(--g500); margin-bottom: 16px;
-      direction: rtl;
     }
 
     /* ── Setup steps ── */
@@ -311,28 +313,28 @@
     <div class="logo-box"><img src="icons/icon128.png" alt="PechPech"></div>
     <div class="logo-text">
       <h1>PechPech</h1>
-      <p>تولید خودکار صورت‌جلسه فارسی از جلسات آنلاین</p>
+      <p data-i18n="onboardingBrandSubServer">Automatically generates Persian meeting minutes from your online meetings.</p>
     </div>
   </div>
 
   <!-- Step bar -->
   <div class="step-bar" id="step-bar">
-    <div class="step-pip active" id="pip-0">۱</div>
+    <div class="step-pip active" id="pip-0">1</div>
     <div class="step-seg"        id="seg-0"></div>
-    <div class="step-pip"        id="pip-1">۲</div>
+    <div class="step-pip"        id="pip-1">2</div>
     <div class="step-seg"        id="seg-1"></div>
-    <div class="step-pip"        id="pip-2">۳</div>
+    <div class="step-pip"        id="pip-2">3</div>
     <div class="step-seg"        id="seg-2"></div>
-    <div class="step-pip"        id="pip-3">۴</div>
+    <div class="step-pip"        id="pip-3">4</div>
     <div class="step-seg"        id="seg-3"></div>
-    <div class="step-pip"        id="pip-4">۵</div>
+    <div class="step-pip"        id="pip-4">5</div>
   </div>
   <div class="step-labels">
-    <div class="step-lbl active" id="lbl-0">معرفی</div>
-    <div class="step-lbl"        id="lbl-1">نحوه کار</div>
-    <div class="step-lbl"        id="lbl-2">راه‌اندازی</div>
-    <div class="step-lbl"        id="lbl-3">اتصال</div>
-    <div class="step-lbl"        id="lbl-4">شروع</div>
+    <div class="step-lbl active" id="lbl-0" data-i18n="stepIntro">Intro</div>
+    <div class="step-lbl"        id="lbl-1" data-i18n="stepHowItWorks">How it works</div>
+    <div class="step-lbl"        id="lbl-2" data-i18n="stepSetup">Setup</div>
+    <div class="step-lbl"        id="lbl-3" data-i18n="stepConnection">Connection</div>
+    <div class="step-lbl"        id="lbl-4" data-i18n="stepStart">Start</div>
   </div>
 
   <!-- Panels -->
@@ -340,31 +342,30 @@
 
     <!-- 0: Intro -->
     <div class="panel active" id="panel-0">
-      <p class="panel-title">به PechPech خوش آمدید 👋</p>
-      <p class="panel-sub">
-        افزونه‌ای که جلسات آنلاین شما را ضبط می‌کند و بدون هیچ یادداشتی،
-        صورت‌جلسه فارسی آماده تحویل می‌دهد.
+      <p class="panel-title" data-i18n="introWelcomeTitle">Welcome to PechPech 👋</p>
+      <p class="panel-sub" data-i18n="introWelcomeBodyServer">
+        An extension that records your online meetings and delivers ready-made Persian meeting minutes without any note-taking.
       </p>
       <div class="feature-grid">
         <div class="feat">
           <span class="feat-icon">🎙</span>
           <div>
-            <div class="feat-title">ضبط هوشمند جلسه</div>
-            <div class="feat-desc">صدای تب مرورگر (Google Meet، Teams، Zoom Web) و میکروفون شما را همزمان ضبط و ترکیب می‌کند. هیچ نرم‌افزار جانبی لازم نیست.</div>
+            <div class="feat-title" data-i18n="feat1Title">Smart meeting recording</div>
+            <div class="feat-desc" data-i18n="feat1Desc">Simultaneously records and mixes browser tab audio (Google Meet, Teams, Zoom Web) and your microphone. No extra software needed.</div>
           </div>
         </div>
         <div class="feat">
           <span class="feat-icon">📝</span>
           <div>
-            <div class="feat-title">تبدیل گفتار به متن با Whisper</div>
-            <div class="feat-desc">صدای ضبط‌شده به سرویس Whisper ارسال می‌شود و به متن دقیق فارسی تبدیل می‌گردد — با پشتیبانی از لهجه و اصطلاحات فنی.</div>
+            <div class="feat-title" data-i18n="feat2TitleServer">Speech-to-text with Whisper</div>
+            <div class="feat-desc" data-i18n="feat2DescServer">Recorded audio is sent to the Whisper service and converted into accurate Persian text — with support for accents and technical terminology.</div>
           </div>
         </div>
         <div class="feat">
           <span class="feat-icon">📄</span>
           <div>
-            <div class="feat-title">صورت‌جلسه ساختارمند</div>
-            <div class="feat-desc">یک مدل زبانی (Claude، GPT یا هر LLM دیگری) متن را تحلیل کرده و خلاصه، تصمیمات، و اقدامات جلسه را به فارسی می‌نویسد.</div>
+            <div class="feat-title" data-i18n="feat3TitleServer">Structured meeting minutes</div>
+            <div class="feat-desc" data-i18n="feat3DescServer">A language model (Claude, GPT, or any other LLM) analyzes the transcript and writes the summary, decisions, and action items in Persian.</div>
           </div>
         </div>
       </div>
@@ -372,80 +373,80 @@
 
     <!-- 1: How it works -->
     <div class="panel" id="panel-1">
-      <p class="panel-title">چطور کار می‌کند؟</p>
-      <p class="panel-sub">PechPech از چهار بخش تشکیل شده که با هم کار می‌کنند:</p>
+      <p class="panel-title" data-i18n="howItWorksTitle">How does it work?</p>
+      <p class="panel-sub" data-i18n="howItWorksSubServer">PechPech is made up of four parts working together:</p>
 
-      <div class="arch-flow-label">جریان پردازش — از ضبط تا صورت‌جلسه:</div>
+      <div class="arch-flow-label" data-i18n="archFlowLabel">Processing flow — from recording to minutes:</div>
       <div class="arch">
         <div class="arch-node">
-          <div class="arch-box ext"><span class="arch-icon">🖥</span>افزونه<br/>Chrome</div>
-          <div class="arch-label">ضبط صدا</div>
+          <div class="arch-box ext"><span class="arch-icon">🖥</span><span data-i18n-html="archExt">Chrome<br/>Extension</span></div>
+          <div class="arch-label" data-i18n="archNodeExtLabel">Record audio</div>
         </div>
         <div class="arch-arrow">
           <div class="arch-arrow-line"></div>
           <div class="arch-arrow-tip">›</div>
-          <div class="arch-arrow-cap">فایل صوتی</div>
+          <div class="arch-arrow-cap" data-i18n="archArrowAudioFile">Audio file</div>
         </div>
         <div class="arch-node">
-          <div class="arch-box srv"><span class="arch-icon">⚙️</span>سرور<br/>محلی</div>
-          <div class="arch-label">Node.js</div>
+          <div class="arch-box srv"><span class="arch-icon">⚙️</span><span data-i18n-html="archSrv">Local<br/>Server</span></div>
+          <div class="arch-label" data-i18n="archSrvLabel">Node.js</div>
         </div>
         <div class="arch-arrow">
           <div class="arch-arrow-line"></div>
           <div class="arch-arrow-tip">›</div>
-          <div class="arch-arrow-cap">صدای پاکیزه</div>
+          <div class="arch-arrow-cap" data-i18n="archArrowCleanAudio">Clean audio</div>
         </div>
         <div class="arch-node">
-          <div class="arch-box stt"><span class="arch-icon">🗣</span>سرویس<br/>Whisper</div>
-          <div class="arch-label">تبدیل به متن</div>
+          <div class="arch-box stt"><span class="arch-icon">🗣</span><span data-i18n-html="archStt">Whisper<br/>Service</span></div>
+          <div class="arch-label" data-i18n="archSttLabel">Speech to text</div>
         </div>
         <div class="arch-arrow">
           <div class="arch-arrow-line"></div>
           <div class="arch-arrow-tip">›</div>
-          <div class="arch-arrow-cap">متن جلسه</div>
+          <div class="arch-arrow-cap" data-i18n="archArrowTranscript">Meeting transcript</div>
         </div>
         <div class="arch-node">
-          <div class="arch-box llm"><span class="arch-icon">🤖</span>مدل<br/>زبانی</div>
-          <div class="arch-label">Claude / GPT</div>
+          <div class="arch-box llm"><span class="arch-icon">🤖</span><span data-i18n-html="archLlm">Language<br/>Model</span></div>
+          <div class="arch-label" data-i18n="archLlmLabelServer">Claude / GPT</div>
         </div>
         <div class="arch-arrow">
           <div class="arch-arrow-line"></div>
           <div class="arch-arrow-tip">›</div>
-          <div class="arch-arrow-cap">MOM نهایی</div>
+          <div class="arch-arrow-cap" data-i18n="archArrowFinalMom">Final minutes</div>
         </div>
         <div class="arch-node">
-          <div class="arch-box out"><span class="arch-icon">📄</span>صورت‌<br/>جلسه</div>
-          <div class="arch-label">Markdown فارسی</div>
+          <div class="arch-box out"><span class="arch-icon">📄</span><span data-i18n-html="archOut">Meeting<br/>Minutes</span></div>
+          <div class="arch-label" data-i18n="archOutLabelServer">Persian Markdown file</div>
         </div>
       </div>
 
       <div class="setup-steps">
         <div class="setup-step">
-          <div class="setup-num">۱</div>
+          <div class="setup-num">1</div>
           <div>
-            <div class="setup-title">افزونه Chrome</div>
-            <div class="setup-desc">صدای جلسه را ضبط و به سرور محلی ارسال می‌کند. همه پردازش‌ها روی سیستم خودتان انجام می‌شود — هیچ داده‌ای به سرور خارجی نمی‌رود.</div>
+            <div class="setup-title" data-i18n="setupHowStep1Title">Chrome Extension</div>
+            <div class="setup-desc" data-i18n="setupHowStep1DescServer">Records the meeting audio and sends it to the local server. All processing happens on your own machine — no data goes to an external server.</div>
           </div>
         </div>
         <div class="setup-step">
-          <div class="setup-num">۲</div>
+          <div class="setup-num">2</div>
           <div>
-            <div class="setup-title">سرور محلی (Node.js)</div>
-            <div class="setup-desc">فایل صوتی را دریافت، پاکسازی و به Whisper ارسال می‌کند. متن دریافتی را به LLM می‌دهد و صورت‌جلسه نهایی را ذخیره می‌کند.</div>
+            <div class="setup-title" data-i18n="setupServerStepTitle">Local Server (Node.js)</div>
+            <div class="setup-desc" data-i18n="setupServerStepDesc">Receives the audio file, cleans it up, and sends it to Whisper. Passes the resulting text to the LLM and stores the final minutes.</div>
           </div>
         </div>
         <div class="setup-step">
-          <div class="setup-num">۳</div>
+          <div class="setup-num">3</div>
           <div>
-            <div class="setup-title">Whisper STT</div>
-            <div class="setup-desc">یک سرویس محلی یا ابری سازگار با OpenAI API که صدا را به متن فارسی تبدیل می‌کند. می‌توانید از Groq، OpenAI، یا whisper.cpp محلی استفاده کنید.</div>
+            <div class="setup-title" data-i18n="setupHowStep2Title">Whisper STT</div>
+            <div class="setup-desc" data-i18n="setupHowStep2DescServer">A local or cloud service compatible with the OpenAI API that converts audio into Persian text. You can use Groq, OpenAI, or a local whisper.cpp.</div>
           </div>
         </div>
         <div class="setup-step">
-          <div class="setup-num">۴</div>
+          <div class="setup-num">4</div>
           <div>
-            <div class="setup-title">مدل زبانی (LLM)</div>
-            <div class="setup-desc">Claude Code (پیشنهادی)، یا هر API سازگار با OpenAI، یا هر CLI سفارشی. متن جلسه را تحلیل و صورت‌جلسه می‌نویسد.</div>
+            <div class="setup-title" data-i18n="setupHowStep3Title">Language Model (LLM)</div>
+            <div class="setup-desc" data-i18n="setupHowStep3DescServer">Claude Code (recommended), any OpenAI-compatible API, or any custom CLI. Analyzes the transcript and writes the minutes.</div>
           </div>
         </div>
       </div>
@@ -453,49 +454,49 @@
 
     <!-- 2: Setup -->
     <div class="panel" id="panel-2">
-      <p class="panel-title">راه‌اندازی اولیه</p>
-      <p class="panel-sub">
-        اگر هنوز سرور را نصب نکرده‌اید، این مراحل را طی کنید.
-        اگر قبلاً <code style="font-family:monospace;background:var(--g100);padding:1px 6px;border-radius:4px;font-size:13px">install.sh</code> را اجرا کرده‌اید، از این مرحله رد شوید.
+      <p class="panel-title" data-i18n="setupPanelTitle">Initial setup</p>
+      <p class="panel-sub" data-i18n-html="setupPanelSubServer">
+        If you haven't installed the server yet, follow these steps.
+        If you've already run <code style="font-family:monospace;background:var(--g100);padding:1px 6px;border-radius:4px;font-size:13px">install.sh</code>, skip this step.
       </p>
       <div class="setup-steps">
         <div class="setup-step">
-          <div class="setup-num">۱</div>
+          <div class="setup-num">1</div>
           <div>
-            <div class="setup-title">پیش‌نیازها را نصب کنید</div>
-            <div class="setup-desc">
-              Node.js 18+، Docker Desktop، و Claude CLI (یا هر LLM دیگری) روی سیستم داشته باشید.
+            <div class="setup-title" data-i18n="setupInstallStep1Title">Install the prerequisites</div>
+            <div class="setup-desc" data-i18n="setupInstallStep1Desc">
+              Have Node.js 18+, Docker Desktop, and the Claude CLI (or any other LLM) installed on your machine.
             </div>
           </div>
         </div>
         <div class="setup-step">
-          <div class="setup-num">۲</div>
+          <div class="setup-num">2</div>
           <div>
-            <div class="setup-title">اسکریپت نصب را اجرا کنید</div>
-            <div class="setup-desc">
-              در پوشه اصلی PechPech:<br/>
+            <div class="setup-title" data-i18n="setupInstallStep2Title">Run the install script</div>
+            <div class="setup-desc" data-i18n-html="setupInstallStep2Desc">
+              From the PechPech root folder:<br/>
               <code>chmod +x install.sh && ./install.sh</code><br/>
-              این اسکریپت Whisper و تنظیمات LLM را پیکربندی می‌کند.
+              This script configures Whisper and the LLM settings.
             </div>
           </div>
         </div>
         <div class="setup-step">
-          <div class="setup-num">۳</div>
+          <div class="setup-num">3</div>
           <div>
-            <div class="setup-title">سرور را اجرا کنید</div>
-            <div class="setup-desc">
+            <div class="setup-title" data-i18n="setupInstallStep3Title">Start the server</div>
+            <div class="setup-desc" data-i18n-html="setupInstallStep3Desc">
               <code>node src/launcher/index.js</code><br/>
-              سرور روی پورت ۳۴۵۶ بالا می‌آید. این پنجره را باز نگه دارید.
+              The server comes up on port 3456. Keep this window open.
             </div>
           </div>
         </div>
         <div class="setup-step">
-          <div class="setup-num">۴</div>
+          <div class="setup-num">4</div>
           <div>
-            <div class="setup-title">افزونه را در Chrome بارگذاری کنید</div>
-            <div class="setup-desc">
-              به <code>chrome://extensions</code> بروید، Developer mode را روشن کنید،
-              روی «Load unpacked» کلیک کنید و پوشه <code>src/extension</code> را انتخاب کنید.
+            <div class="setup-title" data-i18n="setupInstallStep4Title">Load the extension in Chrome</div>
+            <div class="setup-desc" data-i18n-html="setupInstallStep4Desc">
+              Go to <code>chrome://extensions</code>, turn on Developer mode,
+              click "Load unpacked", and select the <code>src/extension</code> folder.
             </div>
           </div>
         </div>
@@ -504,48 +505,48 @@
 
     <!-- 3: Connection -->
     <div class="panel" id="panel-3">
-      <p class="panel-title">بررسی اتصال</p>
-      <p class="panel-sub">بیایید مطمئن شویم سرور محلی در حال اجرا است.</p>
+      <p class="panel-title" data-i18n="connectionPanelTitle">Check connection</p>
+      <p class="panel-sub" data-i18n="connectionPanelSubServer">Let's make sure the local server is running.</p>
 
       <div class="conn-status checking" id="conn-status">
         <div class="conn-dot pulse" id="conn-dot"></div>
-        <span id="conn-text">در حال بررسی…</span>
+        <span id="conn-text" data-i18n="connCheckingServer">Checking connection to the server…</span>
       </div>
 
-      <div class="conn-info" id="conn-info">
-        <strong>سرور هنوز راه‌اندازی نشده؟</strong><br/>
-        در ترمینال اجرا کنید:<br/>
+      <div class="conn-info" id="conn-info" data-i18n-html="connInfoServerNotRunning">
+        <strong>Server not started yet?</strong><br/>
+        Run in your terminal:<br/>
         <code>node src/launcher/index.js</code><br/><br/>
-        سپس دکمه «بررسی مجدد» را بزنید.
+        Then click "Recheck".
       </div>
 
-      <button class="btn btn-recheck" id="btn-recheck">↺ بررسی مجدد اتصال</button>
-      <button class="btn btn-settings" id="btn-settings">⚙ باز کردن تنظیمات افزونه</button>
+      <button class="btn btn-recheck" id="btn-recheck" data-i18n="onbRecheckConn">↺ Recheck connection</button>
+      <button class="btn btn-settings" id="btn-settings" data-i18n="openExtensionSettings">⚙ Open extension settings</button>
     </div>
 
     <!-- 4: Ready -->
     <div class="panel" id="panel-4">
       <div class="ready-hero">
         <div class="ready-emoji">🎉</div>
-        <p class="ready-title">آماده‌اید!</p>
-        <p class="ready-sub">PechPech نصب شده و منتظر اولین جلسه شماست.</p>
+        <p class="ready-title" data-i18n="readyTitle">You're all set!</p>
+        <p class="ready-sub" data-i18n="readySub">PechPech is installed and waiting for your first meeting.</p>
       </div>
       <div class="tip-list">
         <div class="tip">
           <span class="tip-icon">🎙</span>
-          <span>در جلسه بعدی، تب Google Meet یا Teams را باز کنید، روی آیکون PechPech در نوار Chrome کلیک کنید و <strong>شروع ضبط</strong> را بزنید.</span>
+          <span data-i18n-html="tip1">On your next meeting, open the Google Meet or Teams tab, click the PechPech icon in the Chrome toolbar, and click <strong>Start Recording</strong>.</span>
         </div>
         <div class="tip">
           <span class="tip-icon">⏹</span>
-          <span>در پایان جلسه <strong>توقف و ذخیره</strong> را بزنید. فایل صوتی به سرور ارسال می‌شود و پردازش شروع می‌شود.</span>
+          <span data-i18n-html="tip2Server">At the end of the meeting, click <strong>Stop &amp; Save</strong>. The audio file is sent to the server and processing begins.</span>
         </div>
         <div class="tip">
           <span class="tip-icon">📄</span>
-          <span>چند دقیقه صبر کنید. صورت‌جلسه نهایی (خلاصه + تصمیمات + اقدامات) در پاپ‌آپ افزونه ظاهر می‌شود.</span>
+          <span data-i18n-html="tip3Server">Wait a few minutes. The final minutes (summary + decisions + action items) appear in the extension popup.</span>
         </div>
         <div class="tip">
           <span class="tip-icon">✏️</span>
-          <span>اگر متن جلسه نیاز به اصلاح دارد، دکمه <strong>اصلاح رونوشت</strong> را بزنید تا LLM متن را بازبینی کند.</span>
+          <span data-i18n-html="tip4">If the transcript needs correcting, click <strong>Correct Transcript</strong> to have the LLM review it.</span>
         </div>
       </div>
     </div>
@@ -554,16 +555,16 @@
 
   <!-- Nav -->
   <div class="card-nav">
-    <span class="nav-progress" id="nav-progress">مرحله ۱ از ۵</span>
+    <span class="nav-progress" id="nav-progress">Step 1 of 5</span>
     <div class="nav-btns">
-      <button class="btn btn-ghost hidden" id="btn-back">قبلی →</button>
-      <button class="btn btn-primary"       id="btn-next">← بعدی</button>
-      <button class="btn btn-success hidden" id="btn-done">شروع کنید ✓</button>
+      <button class="btn btn-ghost hidden" id="btn-back" data-i18n="navPrev">← Previous</button>
+      <button class="btn btn-primary"       id="btn-next" data-i18n="navNext">Next →</button>
+      <button class="btn btn-success hidden" id="btn-done" data-i18n="navDone">Get started ✓</button>
     </div>
   </div>
 
 </div>
 
-<script src="onboarding.js"></script>
+<script type="module" src="onboarding.js"></script>
 </body>
 </html>

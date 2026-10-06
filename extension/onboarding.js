@@ -1,10 +1,16 @@
 'use strict';
 
+import { t, getLanguage, bootLanguage } from './i18n.js';
+
 const TOTAL       = 5;
 const DEFAULT_PORT = 3456;
-const FA_NUMS     = ['۱','۲','۳','۴','۵'];
 
 let current = 0;
+
+function stepNum(n) {
+  const s = String(n);
+  return getLanguage() === 'fa' ? s.replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]) : s;
+}
 
 // ── Navigation ────────────────────────────────────────────────────
 
@@ -18,7 +24,7 @@ function goTo(n) {
     const pip = document.getElementById('pip-' + i);
     const lbl = document.getElementById('lbl-' + i);
     pip.className = 'step-pip' + (i < n ? ' done' : i === n ? ' active' : '');
-    pip.textContent = i < n ? '✓' : FA_NUMS[i];
+    pip.textContent = i < n ? '✓' : stepNum(i + 1);
     lbl.className = 'step-lbl' + (i < n ? ' done' : i === n ? ' active' : '');
   }
   for (let i = 0; i < TOTAL - 1; i++) {
@@ -32,7 +38,7 @@ function goTo(n) {
   document.getElementById('btn-next').classList.toggle('hidden', n === TOTAL - 1);
   document.getElementById('btn-done').classList.toggle('hidden', n !== TOTAL - 1);
   document.getElementById('nav-progress').textContent =
-    'مرحله ' + FA_NUMS[n] + ' از ' + FA_NUMS[TOTAL - 1];
+    t('stepProgress', { n: stepNum(n + 1), total: stepNum(TOTAL) });
 
   if (n === 3) checkServer();
 }
@@ -59,7 +65,7 @@ async function checkServer() {
 
   status.className   = 'conn-status checking';
   dot.className      = 'conn-dot pulse';
-  text.textContent   = 'در حال بررسی ارتباط با سرور…';
+  text.textContent   = t('connCheckingServer');
 
   const port = await getPort();
 
@@ -72,20 +78,14 @@ async function checkServer() {
 
     status.className  = 'conn-status ok';
     dot.className     = 'conn-dot';
-    text.textContent  = `سرور در حال اجرا است — localhost:${port} ✓`;
-    info.innerHTML    =
-      '<strong>همه چیز آماده است!</strong><br/>' +
-      'می‌توانید به مرحله بعد بروید و اولین جلسه را ضبط کنید.';
+    text.textContent  = t('connOkText', { port });
+    info.innerHTML     = t('allReadyBody');
 
   } catch {
     status.className  = 'conn-status fail';
-    dot.className     = 'conn-dot';
-    text.textContent  = `سرور پاسخ نمی‌دهد روی localhost:${port}`;
-    info.innerHTML    =
-      '<strong>سرور هنوز راه‌اندازی نشده؟</strong><br/>' +
-      'در ترمینال اجرا کنید:<br/>' +
-      '<code>node src/launcher/index.js</code><br/><br/>' +
-      'سپس دکمه «بررسی مجدد» را بزنید.';
+    dot.className      = 'conn-dot';
+    text.textContent  = t('connFailText', { port });
+    info.innerHTML     = t('connInfoServerNotRunning');
   }
 }
 
@@ -93,3 +93,8 @@ document.getElementById('btn-recheck').addEventListener('click', checkServer);
 document.getElementById('btn-settings').addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
 });
+
+(async () => {
+  await bootLanguage();
+  goTo(0);
+})();

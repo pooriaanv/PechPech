@@ -40,6 +40,10 @@
 }
 
 /* ── Base ───────────────────────────────────────────────────────── */
+/* Hidden until i18n.js has read the stored language and set dir/lang —
+   avoids a flash of the wrong direction on every popup open. */
+html.lang-pending body { visibility: hidden; }
+
 body {
   width: 400px;
   background: #fff;
@@ -47,7 +51,6 @@ body {
   font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
   font-size: 14px;
   line-height: 1.6;
-  direction: rtl;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -70,6 +73,8 @@ body {
 }
 
 .brand { display: flex; align-items: center; gap: 9px; }
+
+.header-actions { display: flex; align-items: center; gap: 4px; }
 
 .brand-icon {
   width: 30px;
@@ -101,6 +106,10 @@ body {
   align-items: center;
   justify-content: center;
   transition: background .15s, color .15s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
 }
 .settings-btn:hover { background: var(--g100); color: var(--v600); }
 
@@ -203,6 +212,13 @@ body {
 }
 .rec-card:hover { border-color: var(--v200); box-shadow: var(--shadow-sm); }
 
+/* The recording that is playing right now — so it can be found (and stopped)
+   after the list has been redrawn, e.g. coming back from a result. */
+.rec-card.playing {
+  background: var(--v50);
+  border-color: var(--v400);
+}
+
 .rec-top {
   display: flex;
   align-items: center;
@@ -243,7 +259,6 @@ body {
   font-size: 13px;
   font-weight: 700;
   color: var(--g900);
-  direction: rtl;
 }
 
 .rec-date-sub {
@@ -290,7 +305,6 @@ body {
   padding: 3px 8px;
   outline: none;
   background: #fff;
-  direction: rtl;
   box-shadow: 0 0 0 3px rgba(167,139,250,.15);
 }
 
@@ -419,7 +433,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: auto;
+  margin-inline-start: auto;
 }
 .btn-delete:hover { color: var(--red600); background: var(--red100); }
 
@@ -706,8 +720,7 @@ body {
   color: var(--g700);
   line-height: 1.75;
   white-space: pre-wrap;
-  direction: rtl;
-  text-align: right;
+  text-align: start;
 }
 
 .result-bar {
@@ -771,8 +784,7 @@ body {
   color: var(--g500);
   line-height: 1.8;
   white-space: pre-wrap;
-  direction: rtl;
-  text-align: right;
+  text-align: start;
   border-top: 1px solid var(--g200);
   max-height: 220px;
   overflow-y: auto;
@@ -853,7 +865,6 @@ body {
   font-weight: 500;
   color: var(--g400);
   text-align: center;
-  direction: rtl;
   margin-bottom: 12px;
 }
 .rec-mode-indicator span { color: var(--v600); font-weight: 700; }
@@ -894,7 +905,7 @@ body {
 }
 .notes-list {
   margin: 0;
-  padding-right: 18px;
+  padding-inline-start: 18px;
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -904,14 +915,13 @@ body {
   font-size: 13px;
   color: var(--g700);
   line-height: 1.7;
-  direction: rtl;
-  text-align: right;
+  text-align: start;
   position: relative;
 }
 .notes-list-item::before {
   content: '•';
   position: absolute;
-  right: -14px;
+  inset-inline-start: -14px;
   color: var(--v400);
   font-size: 14px;
   line-height: inherit;

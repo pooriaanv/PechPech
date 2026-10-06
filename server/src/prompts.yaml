@@ -1,76 +1,157 @@
 # prompts.yaml — LLM prompt templates for PechPech
 #
-# Edit freely. Two rules:
-#   1. Keep the ## section headings exactly as written — server.js parses output by matching them.
+# Edit freely. Three rules:
+#   1. Keep the ## section headings exactly as written — pipeline.js parses
+#      output by matching them, per language.
 #   2. Use {{transcript}} where the transcript text should be inserted.
+#   3. Each prompt has an `en` and `fa` variant, selected at request time by
+#      the `language` field. The `fa` variants are the original prompt text
+#      (English instructions with Persian section headings); `en` variants
+#      are the same instructions with English section headings and "Keep
+#      the entire output in English." instead of "...in Persian." Keep the
+#      wording of both variants byte-for-byte identical to
+#      extension-standalone/prompts.js so server-generated and
+#      standalone-generated output are indistinguishable for the same
+#      language.
 
-mom: |
-   You will receive a transcript of a meeting between multiple speakers. The transcript was produced automatically by a speech-to-text system, so it may contain errors: misheard words, phonetically similar substitutions, garbled proper nouns, missing punctuation, or run-on words.
+mom:
+  en: |
+    You will receive a transcript of a meeting between multiple speakers. The transcript was produced automatically by a speech-to-text system, so it may contain errors: misheard words, phonetically similar substitutions, garbled proper nouns, missing punctuation, or run-on words.
 
-   Before generating the minutes, carefully read the transcript and use context clues from surrounding sentences to infer the intended meaning. Correct any STT errors you are confident about — wrong words, misheard technical terms, garbled names. If a phrase is genuinely unclear and you cannot confidently correct it, leave it as-is rather than guessing.
-   Analyze the conversation flow — question/answer pairs, topic shifts, changes in speaking style, discourse markers, and logical turn-taking — to detect when a different person is speaking.
+    Before generating the minutes, carefully read the transcript and use context clues from surrounding sentences to infer the intended meaning. Correct any STT errors you are confident about — wrong words, misheard technical terms, garbled names. If a phrase is genuinely unclear and you cannot confidently correct it, leave it as-is rather than guessing.
+    Analyze the conversation flow — question/answer pairs, topic shifts, changes in speaking style, discourse markers, and logical turn-taking — to detect when a different person is speaking.
 
-   Produce your response with exactly THREE sections in this order, using these exact headings:
+    Produce your response with exactly THREE sections in this order, using these exact headings:
 
-   ## خلاصه
-   A concise overview of what was discussed.
+    ## Summary
+    A concise overview of what was discussed.
 
-   ## تصمیمات
-   Concrete decisions that were made during the meeting. If none were made, state that explicitly.
+    ## Decisions
+    Concrete decisions that were made during the meeting. If none were made, state that explicitly.
 
-   ## اقدامات
-   Concrete next steps or tasks, including the owner's name if mentioned and any deadline if mentioned. If none, state that explicitly.
+    ## Action Items
+    Concrete next steps or tasks, including the owner's name if mentioned and any deadline if mentioned. If none, state that explicitly.
 
-   Keep the entire output in Persian.
+    Keep the entire output in English.
 
-   Do not include any content outside these three sections.
+    Do not include any content outside these three sections.
 
-   Transcript:
-   {{transcript}}
+    Transcript:
+    {{transcript}}
+  fa: |
+    You will receive a transcript of a meeting between multiple speakers. The transcript was produced automatically by a speech-to-text system, so it may contain errors: misheard words, phonetically similar substitutions, garbled proper nouns, missing punctuation, or run-on words.
 
-notes: |
-  You will receive a transcript of a single person speaking their thoughts aloud. The transcript was produced automatically by a speech-to-text system and may contain errors.
+    Before generating the minutes, carefully read the transcript and use context clues from surrounding sentences to infer the intended meaning. Correct any STT errors you are confident about — wrong words, misheard technical terms, garbled names. If a phrase is genuinely unclear and you cannot confidently correct it, leave it as-is rather than guessing.
+    Analyze the conversation flow — question/answer pairs, topic shifts, changes in speaking style, discourse markers, and logical turn-taking — to detect when a different person is speaking.
 
-  Your job is to extract each distinct thought, task, idea, reminder, observation, or question as a separate note item. Think of yourself as a human note-taker listening to someone speak — you jot down each item on its own line, in the order it was said, without rewriting or summarising.
+    Produce your response with exactly THREE sections in this order, using these exact headings:
 
-  Rules:
-  - Write each item as a short, natural Persian phrase on its own line, starting with "- ".
-  - Tasks and to-dos: use imperative form (e.g. "- تماس با احمد").
-  - Ideas, observations: use declarative form (e.g. "- ایده: استفاده از رنگ آبی در طراحی").
-  - Open questions: use interrogative form (e.g. "- بررسی کنم که آیا قرارداد تمدید می‌شود؟").
-  - Preserve the original order of speech. Do not reorder or group items.
-  - Omit filler words, false starts, and repetitions.
-  - Merge sub-thoughts into one bullet only if they clearly form a single unified item.
-  - Fix obvious STT errors using context clues, but do not paraphrase or formalize the speaker's words.
-  - Produce exactly one section with this exact heading, followed by the bulleted list:
+    ## خلاصه
+    A concise overview of what was discussed.
 
-  ## یادداشت‌ها
+    ## تصمیمات
+    Concrete decisions that were made during the meeting. If none were made, state that explicitly.
 
-  - If nothing can be extracted from the transcript, output exactly:
+    ## اقدامات
+    Concrete next steps or tasks, including the owner's name if mentioned and any deadline if mentioned. If none, state that explicitly.
 
-  ## یادداشت‌ها
-  - (موردی یافت نشد)
+    Keep the entire output in Persian.
 
-  Keep the entire output in Persian. Do not include any content outside the ## یادداشت‌ها section.
+    Do not include any content outside these three sections.
 
-  Transcript:
-  {{transcript}}
+    Transcript:
+    {{transcript}}
 
-correction: |
-  You will receive a raw meeting transcript produced by a speech-to-text system.
-  It may contain errors: misheard words, phonetically similar substitutions,
-  garbled proper nouns, missing punctuation.
+notes:
+  en: |
+    You will receive a transcript of a single person speaking their thoughts aloud. The transcript was produced automatically by a speech-to-text system and may contain errors.
 
-  Produce a single section with this exact heading:
+    Your job is to extract each distinct thought, task, idea, reminder, observation, or question as a separate note item. Think of yourself as a human note-taker listening to someone speak — you jot down each item on its own line, in the order it was said, without rewriting or summarising.
 
-  ## متن اصلاح‌شده
-  1. Fix STT errors: correct misheard words, garbled terms, or wrong words where you are
-     confident based on context. Leave genuinely unclear phrases as-is.
-  2. Identify speaker turns: start each new speaker turn on a new line with "گوینده ۱:",
-     "گوینده ۲:", etc. Use their real name if mentioned. Omit labels if it is clearly
-     a single speaker throughout.
+    Rules:
+    - Write each item as a short, natural English phrase on its own line, starting with "- ".
+    - Tasks and to-dos: use imperative form (e.g. "- Call Ahmad").
+    - Ideas, observations: use declarative form (e.g. "- Idea: use blue in the design").
+    - Open questions: use interrogative form (e.g. "- Check whether the contract renews?").
+    - Preserve the original order of speech. Do not reorder or group items.
+    - Omit filler words, false starts, and repetitions.
+    - Merge sub-thoughts into one bullet only if they clearly form a single unified item.
+    - Fix obvious STT errors using context clues, but do not paraphrase or formalize the speaker's words.
+    - Produce exactly one section with this exact heading, followed by the bulleted list:
 
-  Keep the output in Persian. Do not add any content outside this section.
+    ## Notes
 
-  Transcript:
-  {{transcript}}
+    - If nothing can be extracted from the transcript, output exactly:
+
+    ## Notes
+    - (nothing found)
+
+    Keep the entire output in English. Do not include any content outside the ## Notes section.
+
+    Transcript:
+    {{transcript}}
+  fa: |
+    You will receive a transcript of a single person speaking their thoughts aloud. The transcript was produced automatically by a speech-to-text system and may contain errors.
+
+    Your job is to extract each distinct thought, task, idea, reminder, observation, or question as a separate note item. Think of yourself as a human note-taker listening to someone speak — you jot down each item on its own line, in the order it was said, without rewriting or summarising.
+
+    Rules:
+    - Write each item as a short, natural Persian phrase on its own line, starting with "- ".
+    - Tasks and to-dos: use imperative form (e.g. "- تماس با احمد").
+    - Ideas, observations: use declarative form (e.g. "- ایده: استفاده از رنگ آبی در طراحی").
+    - Open questions: use interrogative form (e.g. "- بررسی کنم که آیا قرارداد تمدید می‌شود؟").
+    - Preserve the original order of speech. Do not reorder or group items.
+    - Omit filler words, false starts, and repetitions.
+    - Merge sub-thoughts into one bullet only if they clearly form a single unified item.
+    - Fix obvious STT errors using context clues, but do not paraphrase or formalize the speaker's words.
+    - Produce exactly one section with this exact heading, followed by the bulleted list:
+
+    ## یادداشت‌ها
+
+    - If nothing can be extracted from the transcript, output exactly:
+
+    ## یادداشت‌ها
+    - (موردی یافت نشد)
+
+    Keep the entire output in Persian. Do not include any content outside the ## یادداشت‌ها section.
+
+    Transcript:
+    {{transcript}}
+
+correction:
+  en: |
+    You will receive a raw meeting transcript produced by a speech-to-text system.
+    It may contain errors: misheard words, phonetically similar substitutions,
+    garbled proper nouns, missing punctuation.
+
+    Produce a single section with this exact heading:
+
+    ## Corrected Text
+    1. Fix STT errors: correct misheard words, garbled terms, or wrong words where you are
+       confident based on context. Leave genuinely unclear phrases as-is.
+    2. Identify speaker turns: start each new speaker turn on a new line with "Speaker 1:",
+       "Speaker 2:", etc. Use their real name if mentioned. Omit labels if it is clearly
+       a single speaker throughout.
+
+    Keep the output in English. Do not add any content outside this section.
+
+    Transcript:
+    {{transcript}}
+  fa: |
+    You will receive a raw meeting transcript produced by a speech-to-text system.
+    It may contain errors: misheard words, phonetically similar substitutions,
+    garbled proper nouns, missing punctuation.
+
+    Produce a single section with this exact heading:
+
+    ## متن اصلاح‌شده
+    1. Fix STT errors: correct misheard words, garbled terms, or wrong words where you are
+       confident based on context. Leave genuinely unclear phrases as-is.
+    2. Identify speaker turns: start each new speaker turn on a new line with "گوینده ۱:",
+       "گوینده ۲:", etc. Use their real name if mentioned. Omit labels if it is clearly
+       a single speaker throughout.
+
+    Keep the output in Persian. Do not add any content outside this section.
+
+    Transcript:
+    {{transcript}}

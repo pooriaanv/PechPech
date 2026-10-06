@@ -13,19 +13,45 @@ const { createSTTProvider } = require('./stt-providers');
 
 const PROMPTS = yaml.load(fs.readFileSync(path.join(__dirname, 'prompts.yaml'), 'utf8'));
 
-const buildMOMPrompt        = t => PROMPTS.mom.replace('{{transcript}}',        t);
-const buildNotesPrompt      = t => PROMPTS.notes.replace('{{transcript}}',      t);
-const buildCorrectionPrompt = t => PROMPTS.correction.replace('{{transcript}}', t);
+// Prompt builders: `language` ('en' | 'fa') selects the base template from
+// prompts.yaml; an optional `customTemplate` (e.g. a user-supplied prompt
+// synced from extension settings) still wins regardless of language,
+// mirroring extension-standalone/prompts.js's buildMOMPrompt/etc exactly.
+function buildMOMPrompt(transcript, language, customTemplate) {
+  const base = customTemplate || (language === 'fa' ? PROMPTS.mom.fa : PROMPTS.mom.en);
+  return base.replace('{{transcript}}', transcript);
+}
+
+function buildNotesPrompt(transcript, language, customTemplate) {
+  const base = customTemplate || (language === 'fa' ? PROMPTS.notes.fa : PROMPTS.notes.en);
+  return base.replace('{{transcript}}', transcript);
+}
+
+function buildCorrectionPrompt(transcript, language, customTemplate) {
+  const base = customTemplate || (language === 'fa' ? PROMPTS.correction.fa : PROMPTS.correction.en);
+  return base.replace('{{transcript}}', transcript);
+}
 
 // ── MOM Output Parser ─────────────────────────────────────────────
+// Parallel EN/FA regex pattern sets, ported verbatim from
+// extension-standalone/prompts.js's MOM_PATTERNS.
 
-function parseMOMOutput(text) {
-  const normalized = text.replace(/\r\n/g, '\n').trim();
-  const patterns = [
+const MOM_PATTERNS = {
+  en: [
+    { key: 'summary',      regex: /##\s*Summary[^\n]*\n([\s\S]*?)(?=##|$)/i      },
+    { key: 'decisions',    regex: /##\s*Decisions[^\n]*\n([\s\S]*?)(?=##|$)/i    },
+    { key: 'action_items', regex: /##\s*Action Items[^\n]*\n([\s\S]*?)(?=##|$)/i },
+  ],
+  fa: [
     { key: 'summary',      regex: /##\s*خلاصه[^\n]*\n([\s\S]*?)(?=##|$)/i      },
     { key: 'decisions',    regex: /##\s*تصمیمات[^\n]*\n([\s\S]*?)(?=##|$)/i    },
     { key: 'action_items', regex: /##\s*اقدامات[^\n]*\n([\s\S]*?)(?=##|$)/i    },
-  ];
+  ],
+};
+
+function parseMOMOutput(text, language) {
+  const normalized = text.replace(/\r\n/g, '\n').trim();
+  const patterns    = MOM_PATTERNS[language] || MOM_PATTERNS.en;
 
   const result  = {};
   let anyFound  = false;
@@ -130,29 +156,54 @@ function cleanAudio(audioBuffer, mimeType) {
 
 // ── Notes Output Parser ───────────────────────────────────────────
 
-function parseNotesOutput(text) {
+const NOTES_HEADING_RE = {
+  en: /##\s*Notes[^\n]*\n([\s\S]*)/i,
+  fa: /##\s*یادداشت‌ها[^\n]*\n([\s\S]*)/i,
+};
+
+function parseNotesOutput(text, language) {
   const normalized = text.replace(/\r\n/g, '\n').trim();
-  const match      = normalized.match(/##\s*یادداشت‌ها[^\n]*\n([\s\S]*)/i);
-  const raw        = match ? match[1].trim() : normalized;
-  const lines      = raw
+  const regex       = NOTES_HEADING_RE[language] || NOTES_HEADING_RE.en;
+  const match       = normalized.match(regex);
+  const raw         = match ? match[1].trim() : normalized;
+  const lines        = raw
     .split('\n')
     .map(l => l.replace(/^[\s\-•*]+/, '').trim())
     .filter(Boolean);
   return lines.join('\n');
 }
 
+// ── Correction Output Parser ──────────────────────────────────────
+
+const CORRECTION_HEADING_RE = {
+  en: /##\s*Corrected Text[^\n]*\n([\s\S]*)/i,
+  fa: /##\s*متن اصلاح[^\n]*\n([\s\S]*)/i,
+};
+
+function parseCorrectionOutput(text, language) {
+  const regex = CORRECTION_HEADING_RE[language] || CORRECTION_HEADING_RE.en;
+  const match = text.match(regex);
+  return match ? match[1].trim() : text.trim();
+}
+
 // ── Pipeline Factory ──────────────────────────────────────────────
 // createPipeline({ store, createProvider }) → { run, correct }
 //
-// run(id, config, mode)  — STT → prompt (mom|notes) → LLM → parse → store
-// correct(id, config)    — correction prompt → LLM → parse → store
+// run(id, config, mode, signal, language)  — STT → prompt (mom|notes) → LLM → parse → store
+// correct(id, config, signal, language)    — correction prompt → LLM → parse → store
+//
+// `language` ('en' | 'fa', defaults to 'en') is resolved and pinned by the
+// caller (server.js) — see its /recordings/:id/process and
+// /recordings/:id/correct handlers for the pinning logic. It is used
+// as-is here to select the prompt/parser language only — speech-to-text takes
+// no language and detects the spoken one from the audio.
 //
 // Both methods are fire-and-forget safe: all errors are caught and
 // written to the store rather than thrown to the caller.
 
 function createPipeline({ store, createProvider }) {
   return {
-    async run(id, config, mode = 'mom', signal) {
+    async run(id, config, mode = 'mom', signal, language = 'en') {
       try {
         const rec = store.get(id);
         if (!rec) throw new Error(`Recording not found: ${id}`);
@@ -187,12 +238,12 @@ function createPipeline({ store, createProvider }) {
         const provider = createProvider(config);
 
         if (mode === 'notes') {
-          const llmOutput = await provider.invoke(buildNotesPrompt(transcript), { signal });
-          const notes     = parseNotesOutput(llmOutput);
+          const llmOutput = await provider.invoke(buildNotesPrompt(transcript, language, config.promptNotes), { signal });
+          const notes     = parseNotesOutput(llmOutput, language);
           store.update(id, { status: 'done', mode: 'notes', notes });
         } else {
-          const llmOutput = await provider.invoke(buildMOMPrompt(transcript), { signal });
-          const mom       = parseMOMOutput(llmOutput);
+          const llmOutput = await provider.invoke(buildMOMPrompt(transcript, language, config.promptMom), { signal });
+          const mom       = parseMOMOutput(llmOutput, language);
           store.update(id, {
             status:       'done',
             mode:         'mom',
@@ -202,7 +253,7 @@ function createPipeline({ store, createProvider }) {
             ...(mom._parse_warning ? { warning: mom._parse_warning } : {}),
           });
         }
-        console.log(`[pipeline] ${id} done (mode: ${mode})`);
+        console.log(`[pipeline] ${id} done (mode: ${mode}, language: ${language})`);
 
       } catch (err) {
         console.error(`[pipeline] ${id} failed:`, err.message);
@@ -210,7 +261,7 @@ function createPipeline({ store, createProvider }) {
       }
     },
 
-    async correct(id, config, signal) {
+    async correct(id, config, signal, language = 'en') {
       try {
         const rec = store.get(id);
         if (!rec?.transcript) {
@@ -228,10 +279,9 @@ function createPipeline({ store, createProvider }) {
         });
 
         const provider  = createProvider(config);
-        const llmOutput = await provider.invoke(buildCorrectionPrompt(rec.transcript), { signal });
+        const llmOutput = await provider.invoke(buildCorrectionPrompt(rec.transcript, language, config.promptCorrection), { signal });
 
-        const match     = llmOutput.match(/##\s*متن اصلاح[^\n]*\n([\s\S]*)/i);
-        const corrected = match ? match[1].trim() : llmOutput.trim();
+        const corrected = parseCorrectionOutput(llmOutput, language);
 
         store.update(id, {
           correction_status:    'done',
@@ -247,4 +297,12 @@ function createPipeline({ store, createProvider }) {
   };
 }
 
-module.exports = { createPipeline };
+module.exports = {
+  createPipeline,
+  buildMOMPrompt,
+  buildNotesPrompt,
+  buildCorrectionPrompt,
+  parseMOMOutput,
+  parseNotesOutput,
+  parseCorrectionOutput,
+};

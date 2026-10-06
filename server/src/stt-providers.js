@@ -21,7 +21,13 @@ async function callWhisperEndpoint({ baseUrl, apiKey, model, audioBuffer, audioM
   const blob = new Blob([audioBuffer], { type: mime });
   const form = new globalThis.FormData();
   form.append('model',           model);
-  form.append('language',        'fa');
+  // No `language` field, deliberately: leaving it out asks the server to detect
+  // the spoken language itself. It must NOT be derived from the UI language —
+  // that is a preference for the interface and the generated minutes, not a
+  // statement about what was said, and forcing it makes a Persian meeting come
+  // back as English (or the reverse). The server picks the language from the
+  // start of the audio, so a meeting that opens in a different language than
+  // it continues in can be transcribed in the opening one.
   form.append('response_format', 'json');
   form.append('file',            blob, `recording.${ext}`);
 
@@ -132,6 +138,12 @@ function createGeminiSTTAdapter({ sttKey, sttModel }) {
         );
       }
 
+      // Language-neutral on purpose (see the note in callWhisperEndpoint): the
+      // model is told to write down what is spoken, in whatever language that is.
+      const transcribeInstruction =
+        'Transcribe this audio file word-for-word and accurately, in the language(s) actually spoken — do not translate. ' +
+        'Return only the transcribed text, without any explanation or introduction.';
+
       let response;
       try {
         response = await globalThis.fetch(endpoint, {
@@ -144,7 +156,7 @@ function createGeminiSTTAdapter({ sttKey, sttModel }) {
             contents: [{
               role:  'user',
               parts: [
-                { text: 'این فایل صوتی را کلمه به کلمه و دقیق به فارسی رونویسی کن. فقط متن رونویسی‌شده را برگردان، بدون هیچ توضیح یا مقدمه‌ای.' },
+                { text: transcribeInstruction },
                 { inline_data: { mime_type: mime, data: audioBuffer.toString('base64') } },
               ],
             }],

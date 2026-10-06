@@ -82,7 +82,7 @@ class RecordingStore {
     fs.writeFileSync(path.join(this.audioDir, `${id}.${ext}`), audioBuffer);
     this._records[id] = {
       id, filename: `${id}.${ext}`, mimeType: mimeType || 'audio/webm',
-      status: 'saved', createdAt: Date.now(), title: null, mode: null, notes: null,
+      status: 'saved', createdAt: Date.now(), title: null, mode: null, language: null, notes: null,
       transcript: null, summary: null, decisions: null, action_items: null, error: null,
       corrected_transcript: null, correction_status: null, correction_error: null,
     };
@@ -280,12 +280,22 @@ app.post('/recordings/:id/process', (req, res) => {
   const rawMode = req.body?.mode;
   const mode    = rawMode === 'notes' ? 'notes' : 'mom';
 
-  store.update(rec.id, { status: 'processing', error: null });
+  // Pin the generation language the first time processing actually starts
+  // for this recording, and reuse that pinned value on any later
+  // reprocess/correct — a UI language toggle between clicks must not
+  // retroactively change what a recording was generated in. Falls back to
+  // English if the request omits `language` (e.g. an old/unpatched
+  // extension build), same default as the two extension variants.
+  const rawLanguage     = req.body?.language;
+  const requestLanguage = rawLanguage === 'fa' ? 'fa' : 'en';
+  const language        = rec.language || requestLanguage;
+
+  store.update(rec.id, { status: 'processing', error: null, language });
   res.json({ id: rec.id, status: 'processing' });
 
   const controller = new AbortController();
   activeJobs.set(rec.id, controller);
-  pipeline.run(rec.id, loadServerConfig(), mode, controller.signal)
+  pipeline.run(rec.id, loadServerConfig(), mode, controller.signal, language)
     .finally(() => activeJobs.delete(rec.id));
 });
 
@@ -319,11 +329,20 @@ app.post('/recordings/:id/correct', (req, res) => {
     return res.json({ id: rec.id, correction_status: 'correcting', message: 'Already correcting.' });
   }
 
+  // Reuse the recording's own pinned generation language (not the request's)
+  // so the correction pass matches what the transcript/MOM were actually
+  // generated in — a UI language toggle between "process" and "correct"
+  // clicks can't retroactively change it. Only fall back to the request's
+  // language for recordings that predate the `language` field.
+  const rawLanguage     = req.body?.language;
+  const requestLanguage = rawLanguage === 'fa' ? 'fa' : 'en';
+  const language        = rec.language || requestLanguage;
+
   res.json({ id: rec.id, correction_status: 'correcting' });
 
   const controller = new AbortController();
   activeJobs.set(rec.id, controller);
-  pipeline.correct(rec.id, loadServerConfig(), controller.signal)
+  pipeline.correct(rec.id, loadServerConfig(), controller.signal, language)
     .finally(() => activeJobs.delete(rec.id));
 });
 

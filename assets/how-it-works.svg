@@ -1,0 +1,64 @@
+<svg viewBox="0 0 1100 230" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <linearGradient id="brand" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#5b21b6"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#8b5cf6"/>
+    </marker>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#6d28d9" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <!-- connectors -->
+  <g stroke="#8b5cf6" stroke-width="3" stroke-linecap="round" fill="none" marker-end="url(#arrow)">
+    <line x1="203" y1="95" x2="237" y2="95"/>
+    <line x1="423" y1="95" x2="457" y2="95"/>
+    <line x1="643" y1="95" x2="677" y2="95"/>
+    <line x1="863" y1="95" x2="897" y2="95"/>
+  </g>
+
+  <!-- 1 · the meeting -->
+  <g filter="url(#soft)">
+    <rect x="20" y="30" width="180" height="130" rx="18" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2"/>
+  </g>
+  <text x="110" y="78" text-anchor="middle" font-size="32">🎧</text>
+  <text x="110" y="110" text-anchor="middle" font-size="17" font-weight="700" fill="#4c1d95">Your meeting</text>
+  <text x="110" y="132" text-anchor="middle" font-size="12.5" fill="#6b7280">tab audio + your mic</text>
+
+  <!-- 2 · PechPech (everything stays in the browser) -->
+  <g filter="url(#soft)">
+    <rect x="240" y="30" width="180" height="130" rx="18" fill="url(#brand)"/>
+  </g>
+  <text x="330" y="78" text-anchor="middle" font-size="32">🎙️</text>
+  <text x="330" y="110" text-anchor="middle" font-size="17" font-weight="700" fill="#ffffff">PechPech</text>
+  <text x="330" y="132" text-anchor="middle" font-size="12.5" fill="#ddd6fe">records · saves locally</text>
+
+  <!-- 3 · speech to text -->
+  <g filter="url(#soft)">
+    <rect x="460" y="30" width="180" height="130" rx="18" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="2"/>
+  </g>
+  <text x="550" y="78" text-anchor="middle" font-size="32">📝</text>
+  <text x="550" y="110" text-anchor="middle" font-size="17" font-weight="700" fill="#065f46">Speech → text</text>
+  <text x="550" y="132" text-anchor="middle" font-size="12.5" fill="#6b7280">Whisper · OpenAI · Gemini</text>
+
+  <!-- 4 · language model -->
+  <g filter="url(#soft)">
+    <rect x="680" y="30" width="180" height="130" rx="18" fill="#fff7ed" stroke="#fed7aa" stroke-width="2"/>
+  </g>
+  <text x="770" y="78" text-anchor="middle" font-size="32">🧠</text>
+  <text x="770" y="110" text-anchor="middle" font-size="17" font-weight="700" fill="#9a3412">Language model</text>
+  <text x="770" y="132" text-anchor="middle" font-size="12.5" fill="#6b7280">OpenAI · Gemini · any API</text>
+
+  <!-- 5 · minutes -->
+  <g filter="url(#soft)">
+    <rect x="900" y="30" width="180" height="130" rx="18" fill="#eff6ff" stroke="#bfdbfe" stroke-width="2"/>
+  </g>
+  <text x="990" y="78" text-anchor="middle" font-size="32">📋</text>
+  <text x="990" y="110" text-anchor="middle" font-size="17" font-weight="700" fill="#1e40af">Minutes</text>
+  <text x="990" y="132" text-anchor="middle" font-size="12.5" fill="#6b7280">summary · decisions · tasks</text>
+
+  <!-- caption -->
+  <text x="550" y="200" text-anchor="middle" font-size="14" fill="#6b7280">No server in between — the extension talks straight to the providers you choose.</text>
+</svg>

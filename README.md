@@ -2,383 +2,259 @@
   <img src="assets/banner.svg" alt="PechPech — your meetings, whispered into minutes." width="100%">
 </p>
 
-# PechPech — Meeting MOM Generator
+<h3 align="center">Record a meeting. Get the minutes.</h3>
 
-Automatically generate Persian **Minutes of Meeting** from browser-based calls (Google Meet, Zoom web, Teams web, or any browser tab with audio).
+<p align="center">
+  A Chrome extension that turns browser-based calls into clean <b>Minutes of Meeting</b> —
+  in English or فارسی. No server, no accounts: just an API key.
+</p>
 
-Click **Start** when your meeting begins, click **Stop** when it ends. You get a structured MOM — خلاصه, تصمیمات, اقدامات — ready to save as a Markdown file.
+<p align="center">
+  <img alt="Chrome Manifest V3" src="https://img.shields.io/badge/Chrome-Manifest%20V3-7c3aed?style=flat-square">
+  <img alt="No server needed" src="https://img.shields.io/badge/server-not%20needed-16a34a?style=flat-square">
+  <img alt="English and Persian" src="https://img.shields.io/badge/English%20%C2%B7%20%D9%81%D8%A7%D8%B1%D8%B3%DB%8C-0ea5e9?style=flat-square">
+</p>
 
----
-
-## How It Works
-
-```
-Chrome Extension  →  Backend Server  →  Whisper STT  →  LLM  →  MOM
-(captures audio)     (orchestrates)     (transcript)   (writes)
-```
-
-- **Chrome extension** captures tab audio + your microphone, mixes them, and sends the recording to the backend server. On first install it opens a setup wizard.
-- **Backend server** (a small Node.js process on your machine) pre-processes audio with ffmpeg, sends it to a Whisper-compatible STT service, then calls your LLM to produce the MOM.
-- **All settings** (STT URL, API keys, LLM type) live in `server/src/config.json` and are managed through the extension's settings page — no manual file editing needed.
-- Everything stays on your machine — no shared backend, no cloud accounts needed beyond what you already use.
-
----
-
-## Requirements
-
-| Requirement | Notes |
-|---|---|
-| Chrome / Chromium | For the extension |
-| A Whisper-compatible STT server | Local (recommended) or cloud API |
-| An LLM — Claude Code, a custom API, or any CLI | See LLM Setup below |
-| **Native mode** | macOS or Linux · Node.js 18+ |
-| **Docker mode** | macOS, Linux, or Windows · Docker Desktop |
+<table align="center">
+  <tr>
+    <td align="center"><img src="assets/screenshots/popup-idle.png" width="250" alt="Recording and the recordings list"><br><sub><b>Record &amp; replay</b></sub></td>
+    <td align="center"><img src="assets/screenshots/popup-result.png" width="250" alt="Meeting minutes"><br><sub><b>Minutes in one click</b></sub></td>
+    <td align="center"><img src="assets/screenshots/popup-result-fa.png" width="250" alt="Meeting minutes in Persian"><br><sub><b>…or in فارسی</b></sub></td>
+  </tr>
+</table>
+<p align="center"><sub>Screenshots use sample data.</sub></p>
 
 ---
 
-## Installation
+## ✨ What it does
 
-### Quick setup (recommended)
+**🎙️ Capture**
+- **One-click recording** of the meeting tab *and* your microphone — Google Meet, Zoom (web), Teams, any tab with audio
+- **Notices your calls** — a badge and a notification when you join a meeting (add your own domains)
+- **A list of every recording** — play it, rename it, see how long it is, cancel or delete it
+
+**🧠 Understand**
+- **Minutes in one click** — Summary · Decisions · Action items
+- **Notes mode** — think out loud, get one bullet per thought
+- **Correct & separate speakers** — clean up the transcript when you need to
+- **Save as Markdown** (`.md`)
+
+**🎛️ Make it yours**
+- **English & فارسی** — interface and minutes, with full right-to-left support. The *spoken* language is detected automatically
+- **Bring your own AI** — OpenAI, Gemini, any OpenAI-compatible API, or your own Whisper server
+- **Edit the prompts** to change how the minutes are written
+- **Audio quality** — a Compact mode for slow uploads and very long meetings
+
+**🔒 Private by design**
+- **No server.** Recordings stay in your browser; audio goes only to the providers *you* configure
+
+---
+
+## 🚀 Get started
+
+1. **Get an API key** — from [OpenAI](https://platform.openai.com/api-keys) or [Google AI Studio](https://aistudio.google.com/apikey) (Gemini).
+2. **Load the extension** — open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and pick the **`extension-standalone/`** folder.
+3. **Pick your providers** — click ⚙ in the popup, choose a speech-to-text and a language-model provider, paste your key, **Save**.
+
+Then, on any meeting tab: **Start** → **Stop & Save** → **Process** → read the minutes → **Save .md**.
+Switch **Meeting / Notes** before you press Start, and use the 🌐 button for English ↔ فارسی.
+
+## ⚙️ Settings
+
+| Setting | Default | What it does |
+|---|---|---|
+| **Speech-to-text** | `custom` | `openai`, `gemini`, or `custom` — any Whisper-compatible server (URL + key + model) |
+| **Language model** | `openai` | `openai`, `gemini-api`, or `api` — any OpenAI-compatible endpoint (URL + key + model) |
+| **Audio quality** | Standard | **Standard** 64 kbps (up to ~28 MB/hour) or **Compact** 32 kbps (up to ~13 MB/hour), for slow uploads or meetings over an hour. New recordings only; Compact may cost a little accuracy |
+| **Prompts** | built-in | Edit the Meeting / Notes / Correction prompts — keep the `##` headings and `{{transcript}}` |
+| **Meeting domains** | Meet, Zoom, Teams, Skype | Add more, so PechPech can suggest recording there |
+
+<details>
+<summary>📸 See the Settings page</summary>
+<br>
+<img src="assets/screenshots/settings.png" width="600" alt="The Settings page">
+</details>
+
+## 🔄 How it works
+
+<p align="center">
+  <img src="assets/how-it-works.svg" alt="Your meeting → PechPech → speech-to-text → language model → minutes" width="100%">
+</p>
+
+- The extension records the tab and your mic, mixes them, and keeps the audio in your browser's own storage.
+- When you press **Process**, it sends the audio to your speech-to-text provider, then the transcript to your language model, and shows you the minutes.
+- Nothing goes through a server of ours — or anyone's, except the providers you choose.
+
+## 🧰 Two ways to run PechPech
+
+| | **Standalone** *(everything above)* | **Server-based** |
+|---|---|---|
+| Folder | `extension-standalone/` | `extension/` + `server/` |
+| Needs a running server / Docker | **No** | Yes |
+| Language-model providers | OpenAI, Gemini, any OpenAI-compatible API | the same, plus **Claude Code / any CLI tool** |
+| Recordings stored in | the browser | a `data/` folder on disk |
+| Prompts | edit in Settings | edit `prompts.yaml` |
+
+Need Claude Code or a CLI as your language model, or recordings saved as files? Use the server-based version below.
+
+---
+
+## 🖥️ Server-based version
+
+A small Node.js helper (native or Docker) runs on your machine: it cleans the audio with ffmpeg, calls your Whisper-compatible STT service, then your LLM — Claude Code, a custom API, or any CLI. You load `extension/` instead of `extension-standalone/`.
+
+<details>
+<summary><b>Install & run</b></summary>
+
+**Needs:** Chrome · Node.js 18+ (macOS/Linux) *or* Docker · a Whisper-compatible STT · an LLM.
 
 ```bash
-bash install.sh
+bash install.sh               # guided setup (port, LLM, STT) — launches PechPech when done
+node launcher/index.js        # start it next time
+node launcher/index.js --stop      # stop
+node launcher/index.js --status    # is the server reachable?
+node launcher/index.js --install   # auto-start on login
 ```
 
-The installer guides you through everything — port, LLM choice, STT config — and launches PechPech automatically when done. On subsequent runs:
-
-```bash
-node launcher/index.js
-```
-
-### Manual setup — Docker
-
-#### Step 1 — Create `.env`
+**Docker, by hand:**
 
 ```env
+# .env
 MODE=docker
 LLM_CLI=claude        # openai | gemini-api | api | claude | custom
 PECHPECH_PORT=3456
 ```
 
-#### Step 2 — Build and start
-
 ```bash
-docker compose build
-docker compose up -d
+docker compose build && docker compose up -d
+docker exec -it pechpech-helper claude login   # only if using Claude — it lives inside the container, so redo it after a rebuild
+curl http://localhost:3456/health              # → {"status":"ok"}
 ```
 
-#### Step 3 — Authenticate Claude (if using Claude)
+Then open `chrome://extensions` → **Developer mode** → **Load unpacked** → `extension/`, click ⚙ and fill in your STT URL and LLM details.
 
-```bash
-docker exec -it pechpech-helper claude login
-```
+</details>
 
-The login lives inside the container's own filesystem only — it is not mounted from
-or shared with your host, so you'll need to run this again if the container is
-ever removed or rebuilt.
+<details>
+<summary><b>Speech-to-text (Whisper)</b></summary>
 
-#### Step 4 — Verify
+Set it in ⚙ Settings. The spoken language is auto-detected — there is nothing to choose.
 
-```bash
-curl http://localhost:3456/health
-# → {"status":"ok"}
-```
+- **whisper.cpp, local (recommended)** — `brew install whisper-cpp`, then
+  `whisper-cpp --download-model medium` and
+  `whisper-server --model ~/.cache/whisper/ggml-medium.bin --host 127.0.0.1 --port 8080`
+  → URL `http://localhost:8080/v1`, key blank
+- **OpenAI** — URL `https://api.openai.com/v1`, your key
+- **Groq** (free tier, fast) — URL `https://api.groq.com/openai/v1`, your key
 
-#### Step 5 — Load the extension and configure
+</details>
 
-1. Open Chrome → `chrome://extensions`
-2. Enable **Developer mode** → **Load unpacked** → select `extension/`
-3. The PechPech onboarding page opens automatically
-4. Click ⚙ in the popup to open Settings and fill in your STT URL and LLM details
+<details>
+<summary><b>Language model (Claude Code, API, CLI)</b></summary>
 
----
+- **Claude Code** (uses your existing subscription) — `npm install -g @anthropic-ai/claude-code`, `claude login`, check with `claude -p "hello"`, then set the LLM type to **Claude Code**.
+- **Custom API** — anything with `/chat/completions` (OpenAI, Groq, Ollama behind an OpenAI wrapper…). Fill in **API Base URL**, **API Key**, **Model** (e.g. `gpt-4o`, `llama3.1`).
+- **Custom CLI** — any tool that reads a prompt and prints the answer, e.g. `ollama run llama3.1`.
 
-## No-Server Mode (Standalone Extension)
+Settings are saved to `server/src/config.json` through the server API and apply from the next recording.
 
-Prefer not to run a local server or Docker at all? `extension-standalone/` is a second, self-contained version of the extension that needs **nothing else running** — it calls your chosen STT/LLM provider directly from the browser and stores recordings in the browser's own IndexedDB instead of on disk.
-
-|  | `extension/` + `server/` | `extension-standalone/` |
+| Setting | Default | Notes |
 |---|---|---|
-| Requires a running server/Docker | Yes | **No** |
-| STT/LLM providers | OpenAI, Gemini, Custom API, **Claude Code / any CLI** | OpenAI, Gemini, Custom API only — no CLI option (browsers can't shell out) |
-| Recording storage | `data/` folder on disk | Browser's IndexedDB |
-| Config storage | `server/src/config.json` | `chrome.storage.local` |
-| Editable LLM prompts | Edit `server/src/prompts.yaml` by hand | Built into the Settings page UI |
-
-If you already use Claude Code or a custom CLI as your LLM, or want recordings saved as files on disk, use the server-based extension above. Otherwise, the standalone variant is simpler to set up.
-
-### Setup
-
-1. Open Chrome → `chrome://extensions`
-2. Enable **Developer mode** → **Load unpacked** → select `extension-standalone/`
-3. The onboarding page opens automatically and walks you through granting microphone permission
-4. Click ⚙ in the popup to open Settings and configure your STT and LLM provider
-
-### Settings
-
-| Setting | Default | Description |
-|---|---|---|
-| STT Provider | `custom` | `custom` (your own Whisper-compatible server), `openai`, or `gemini` |
-| STT Base URL | `http://localhost:8080/v1` | Only shown for the `custom` provider |
-| STT API Key | *(blank)* | Required for `openai`/`gemini`, optional for `custom` |
-| STT Model | `whisper-1` | |
-| LLM Provider | `openai` | `openai`, `gemini-api`, or `api` (any OpenAI-compatible endpoint) |
-| API Base URL / Key / Model | *(blank)* | Only shown for the `api` provider |
-| **Prompts** | built-in Persian prompts | Click any of the three prompts (MOM / Notes / Correction) to expand it and edit the wording — keep the `##` section headings and `{{transcript}}` placeholder intact, or output parsing breaks |
-| Meeting domains | Meet / Zoom / Teams / Skype | Add custom domains so PechPech also notifies you when you join a call there |
-
-### Two modes
-
-The popup has a toggle between:
-- **جلسه (Meeting)** — the standard three-section MOM (خلاصه / تصمیمات / اقدامات)
-- **یادداشت (Notes)** — for thinking aloud solo rather than a multi-person meeting; extracts each distinct thought as its own bullet instead of summarizing
-
-### Privacy
-
-Recordings never leave your device except as direct calls to whichever STT/LLM provider you configure in Settings — there is no intermediary server at all, not even a local one.
-
----
-
-## Running PechPech
-
-```bash
-node launcher/index.js           # start
-node launcher/index.js --stop    # stop
-node launcher/index.js --status  # check if server is reachable
-node launcher/index.js --install # auto-start on login
-```
-
----
-
-## STT Setup (Whisper)
-
-Configure the STT endpoint in the extension's **Settings** page (⚙ icon in the popup).
-
-### Option A — whisper.cpp local server (recommended)
-
-```bash
-brew install whisper-cpp
-whisper-cpp --download-model medium
-whisper-server --model ~/.cache/whisper/ggml-medium.bin --host 127.0.0.1 --port 8080
-```
-
-Settings → **STT Base URL:** `http://localhost:8080/v1` · **STT API Key:** *(blank)*
-
-### Option B — OpenAI Whisper API
-
-Settings → **STT Base URL:** `https://api.openai.com/v1` · **STT API Key:** your key
-
-### Option C — Groq (free tier, very fast)
-
-Settings → **STT Base URL:** `https://api.groq.com/openai/v1` · **STT API Key:** your key
-
----
-
-## LLM Setup
-
-Several options — choose one during `install.sh` or change it anytime in Settings.
-
-### Claude Code (recommended — uses your existing subscription)
-
-```bash
-npm install -g @anthropic-ai/claude-code
-claude login
-claude -p "hello"   # verify
-```
-
-In **Settings**, set LLM type to **Claude Code**.
-
-### Custom API (any OpenAI-compatible endpoint)
-
-Works with OpenAI, Groq, local Ollama with an OpenAI wrapper, or any service that implements `/chat/completions`.
-
-In **Settings**, set LLM type to **Custom API** and fill in:
-- **API Base URL** — e.g. `https://api.openai.com/v1`
-- **API Key** — your key
-- **Model** — e.g. `gpt-4o`, `llama3.1`, `claude-3-5-sonnet-20241022`
-
-### Custom CLI
-
-Any CLI tool that reads a prompt and writes the response to stdout.
-
-In **Settings**, set LLM type to **Custom CLI** and enter the command, e.g.:
-
-```
-ollama run llama3.1
-```
-
----
-
-## Extension Settings
-
-Click the PechPech icon → ⚙:
-
-| Setting | Default | Description |
-|---|---|---|
-| STT Base URL | `http://localhost:8080/v1` | Whisper server address |
-| STT API Key | *(blank)* | Leave blank for local servers |
-| STT Model | `whisper-1` | Model name sent to the STT endpoint |
-| LLM Type | `openai` | `openai` / `gemini-api` / `api` / `claude` / `custom` |
-| API Base URL | *(blank)* | Only shown for `api` type |
-| API Key | *(blank)* | Only shown for `api` type |
-| Model | *(blank)* | Only shown for `api` type; default `gpt-4o` |
-| Custom Command | *(blank)* | Only shown for `custom` type |
+| STT Base URL / Key / Model | `http://localhost:8080/v1` / blank / `whisper-1` | Key can stay blank for local servers |
+| LLM Type | `openai` | `openai` · `gemini-api` · `api` · `claude` · `custom` |
+| API Base URL / Key / Model | blank | Only for the `api` type (model defaults to `gpt-4o`) |
+| Custom Command | blank | Only for the `custom` type |
 | Helper Port | `3456` | Must match `PECHPECH_PORT` in `.env` |
 
-Settings are saved to `server/src/config.json` via the server API and take effect immediately on the next recording.
+</details>
 
----
+<details>
+<summary><b>Configuration & customising the minutes</b></summary>
 
-## Usage
+`server/src/config.json` holds all STT/LLM settings (written by `install.sh`, updated from Settings; you can edit it by hand):
 
-1. **Open your meeting** in a browser tab (Google Meet, Zoom web, Teams, etc.)
-2. **Click the PechPech icon** in the Chrome toolbar
-3. **Click Start Recording** — captures tab audio and microphone
-4. **Have your meeting** — nothing else to do
-5. **Click Stop and Save** when the meeting ends
-6. Click **پردازش** on the recording card
-7. Wait ~30–60 seconds for transcription and MOM generation
-8. **Your MOM appears** in Persian — خلاصه, تصمیمات, اقدامات
-9. Optionally click **اصلاح رونوشت** to have the LLM clean up the transcript
-10. Click **ذخیره .md** to download
+```json
+{ "sttUrl": "http://localhost:8080/v1", "sttKey": "", "sttModel": "whisper-1",
+  "llmCli": "claude", "llmCommand": "", "llmApiUrl": "", "llmApiKey": "", "llmApiModel": "" }
+```
 
----
+`.env` only controls how the launcher starts the server (`MODE`, `PECHPECH_PORT`, `LLM_CLI`) — credentials never go there.
 
-## Project Structure
+To change what the LLM writes, edit `server/src/prompts.yaml` (each prompt has an `en` and an `fa` variant). The section headings are parsed by the server — `## Summary` / `## Decisions` / `## Action Items` in English, `## خلاصه` / `## تصمیمات` / `## اقدامات` in Persian — keep them as written, or update the regexes in `pipeline.js` too.
+
+</details>
+
+<details>
+<summary><b>Project structure</b></summary>
 
 ```
 PechPech/
-├── server/                     — Backend server (Docker build context)
-│   ├── Dockerfile
-│   ├── .dockerignore
-│   ├── package.json
-│   └── src/                    — Source code only
-│       ├── server.js           — Express HTTP layer
-│       ├── pipeline.js         — Recording Pipeline: clean → STT → LLM → parse
-│       ├── llm-providers.js    — LLM provider seam (CLIAdapter + APIAdapter)
-│       ├── prompts.yaml        — LLM prompt templates (edit to customise MOM format)
-│       ├── config.json         — Runtime config (gitignored, written by install.sh)
-│       └── config.example.json — Config shape reference
-├── extension/
-│   ├── manifest.json
-│   ├── background.js           — Service worker + onboarding trigger
-│   ├── offscreen.html/js       — Audio capture and mixing
-│   ├── popup.html/css/js       — Main recording UI
-│   ├── settings.html/js        — Settings page
-│   ├── onboarding.html/js      — 5-step setup wizard
-│   └── icons/
-├── extension-standalone/       — No-server variant (see "No-Server Mode" above)
-├── launcher/
-│   ├── index.js                — Start, stop, status, auto-start
-│   └── onboarding/
-│       └── index.html          — First-run guide (opened by launcher)
-├── data/                       — Recordings (gitignored)
-├── docker-compose.yml
-├── install.sh
-├── .env                        — Gitignored; written by install.sh
-└── .gitignore
+├── extension-standalone/     — the main extension (no server)
+│   ├── background.js         — recording, STT + LLM calls, stuck-job recovery, meeting detection
+│   ├── offscreen.js          — audio capture & mixing, audio quality
+│   ├── popup.html/css/js     — recorder, recordings list, results
+│   ├── settings.html/js      — providers, audio quality, prompts
+│   ├── providers.js          — STT + LLM adapters (OpenAI, Gemini, any compatible API)
+│   ├── prompts.js            — prompt templates (EN + FA) and output parsers
+│   ├── store.js              — recordings, kept in the browser (IndexedDB)
+│   ├── i18n.js               — English / Persian strings
+│   └── webm-duration.js      — adds the missing length to Chrome's WebM recordings
+├── extension/                — the extension for the server-based version
+├── server/                   — Node.js helper (server.js · pipeline.js · providers · prompts.yaml)
+├── launcher/                 — start, stop, status, auto-start
+├── data/                     — recordings (gitignored)
+├── docker-compose.yml · install.sh · .env
+└── CONTEXT.md                — detailed technical notes
 ```
 
----
-
-## Configuration
-
-### config.json
-
-`server/src/config.json` holds all STT and LLM settings. It is written by `install.sh` and updated through the extension's Settings page. You can also edit it manually:
-
-```json
-{
-  "sttUrl": "http://localhost:8080/v1",
-  "sttKey": "",
-  "sttModel": "whisper-1",
-  "llmCli": "claude",
-  "llmCommand": "",
-  "llmApiUrl": "",
-  "llmApiKey": "",
-  "llmApiModel": ""
-}
-```
-
-### .env
-
-Infrastructure-only — controls how the launcher starts the server:
-
-```
-MODE=native          # or: docker
-PECHPECH_PORT=3456
-LLM_CLI=claude       # baked into Docker image at build time (only matters if using claude)
-```
-
-STT/LLM credentials do **not** go in `.env` — they go in `config.json`.
+</details>
 
 ---
 
-## Customising the MOM Format
+## 🛟 Troubleshooting
 
-Edit `server/src/prompts.yaml` to change what the LLM produces. The three section headings (`## خلاصه`, `## تصمیمات`, `## اقدامات`) are parsed by the server — keep them exactly as written or update the regex in `pipeline.js` too.
+<details>
+<summary><b>Persian audio comes out as English text</b></summary>
 
----
+The spoken language is auto-detected; no language is sent to the STT server. Some local servers default to English instead — start yours with auto-detect on (whisper.cpp: `-l auto`). The language is decided from the start of the recording, so a meeting that opens in another language can be transcribed in that one.
 
-## Troubleshooting
+</details>
 
-**"Local Helper is not running" when clicking Start**
+<details>
+<summary><b>"invalid audio input … webm duration parsing …"</b></summary>
 
-```bash
-node launcher/index.js
-# or: docker compose up -d
-```
+Your STT provider can't read Chrome's WebM recordings (they carry no length in the header). Use a different provider, or the server-based version, which re-encodes the audio with ffmpeg first.
 
----
+</details>
 
-**"STT endpoint unreachable"**
+<details>
+<summary><b>A long meeting fails or times out</b></summary>
 
-```bash
-curl http://localhost:8080/v1/audio/transcriptions
-# Should return 405, not connection refused
-```
+An hour of audio is roughly 13–28 MB, which can exceed a provider's upload limit (OpenAI: 25 MB) or take a long time on a slow connection. Set **Audio quality → Compact** in Settings (new recordings only).
 
-Check the STT Base URL in Settings.
+</details>
 
----
+<details>
+<summary><b>Audio stops when I switch tabs</b></summary>
 
-**"CLI not found: claude"**
+Tab audio is tied to the tab that was active when you pressed Start. Keep the meeting tab focused, or move it into its own window.
 
-```bash
-which claude    # confirm it's on PATH
-claude -p "hi"  # test it works
-```
+</details>
 
-If `which claude` works in your shell but not from the server, enter the full path in Settings → Custom Command (e.g. `/usr/local/bin/claude`).
+<details>
+<summary><b>Server-based version: "Local Helper is not running" · "STT endpoint unreachable" · CLI errors</b></summary>
 
----
+- **Helper not running** — `node launcher/index.js` (or `docker compose up -d`).
+- **STT endpoint unreachable** — check the STT Base URL. `curl http://localhost:8080/v1/audio/transcriptions` should answer `405`, not "connection refused".
+- **`CLI not found: claude`** — check `which claude` and `claude -p "hi"`. If it works in your shell but not from the server, enter the full path in Settings → Custom Command (e.g. `/usr/local/bin/claude`).
+- **CLI authentication failed** — `claude login` (Docker: `docker exec -it pechpech-helper claude login`).
+- **Minutes are empty or garbled** — the transcript may be too short or silent (check playback in the list), or the LLM's output format differs: check the server logs and adjust `prompts.yaml`.
 
-**"CLI authentication failed"**
+</details>
 
-```bash
-claude login
-# Docker:
-docker exec -it pechpech-helper claude login
-```
+## 🔒 Privacy
 
----
-
-**MOM sections are empty or garbled**
-
-- The transcript may be too short or silent — check the audio playback in the recordings list.
-- The LLM output format may differ — check the server logs and edit `prompts.yaml` if needed.
-
----
-
-**Audio stops when switching tabs**
-
-Tab audio is tied to the tab active when you clicked Start. Keep the meeting tab focused or move it to a separate window.
-
----
-
-## Privacy
-
-- All audio is processed locally or sent only to the STT/LLM providers **you** configure.
-- No audio, transcripts, or MOMs are ever sent to any server operated by this project.
-- API keys are stored in `config.json` on your machine — they never leave it.
-- The backend server only binds to `127.0.0.1` — unreachable from outside your machine.
+- Audio is processed in your browser (or on your machine) and sent **only to the speech-to-text and language-model providers you configure**.
+- Nothing is sent to any server operated by this project.
+- API keys stay on your machine — in the browser's extension storage, or in `config.json` for the server-based version.
+- The server-based helper only listens on `127.0.0.1`.

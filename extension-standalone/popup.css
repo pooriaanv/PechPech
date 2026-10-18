@@ -468,6 +468,7 @@ body {
   white-space: nowrap;
 }
 .btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .45; cursor: default; pointer-events: none; }
 
 .btn-primary {
   background: linear-gradient(135deg, var(--v500), var(--v700));

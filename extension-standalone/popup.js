@@ -4,6 +4,7 @@
  * Flow:
  *   idle → recording → [saving] → idle (recording in list with Process button)
  *   idle → click Process on list item → processing → result
+ *   result → Regenerate → processing (LLM step only) → result
  *
  * State (processing / result / error) is persisted in chrome.storage.session
  * so reopening the popup restores exactly where the user left off.
@@ -40,6 +41,7 @@ const el = {
   btnStart:     $('btn-start'),
   btnStop:      $('btn-stop'),
   btnSave:      $('btn-save'),
+  btnRegenerate: $('btn-regenerate'),
   btnNew:       $('btn-new'),
   btnRetry:     $('btn-retry'),
   btnRefresh:   $('btn-refresh'),
@@ -78,10 +80,13 @@ let pollingTimer  = null;
 let currentMOM    = null;
 let currentMode   = 'mom'; // 'mom' | 'notes'
 let currentProcessingId = null;
+// Mode of the job on the processing screen. Usually currentMode, but a
+// regenerate keeps the result's own mode, whatever the toggle says.
+let processingMode = 'mom';
 
 // ── Session state helpers ─────────────────────────────────────────
 
-const SESSION_KEYS = ['popupState', 'recordingId', 'currentMOM', 'errorMsg', 'currentMode'];
+const SESSION_KEYS = ['popupState', 'recordingId', 'currentMOM', 'errorMsg', 'processingMode'];
 
 function saveSession(patch) {
   return new Promise(r =>
@@ -178,7 +183,7 @@ function setProcessingStep(status) {
   const msgs = {
     saving:       t('processingSaving'),
     transcribing: t('processingTranscribing'),
-    summarizing:  currentMode === 'notes' ? t('processingSummarizingNotes') : t('processingSummarizingMom'),
+    summarizing:  processingMode === 'notes' ? t('processingSummarizingNotes') : t('processingSummarizingMom'),
   };
   el.procMsg.textContent = msgs[status] || t('processingDefault');
 
@@ -239,6 +244,10 @@ function updateTranscriptSection(mom) {
     el.transcript.classList.add('hidden');
     el.transcriptChevron.classList.remove('open');
   }
+
+  // A correction and a regenerate on the same recording would share its one
+  // job slot in background.js (and its Cancel), so only one runs at a time.
+  el.btnRegenerate.disabled = correcting;
 }
 
 function momFromRecord(rec) {
@@ -271,7 +280,14 @@ function startPolling(recordingId) {
       const rec = await getRecording(recordingId);
       if (!rec) return;
 
-      if (rec.status === 'done') {
+      if (rec.status === 'done' && rec.regen_error) {
+        // A regenerate that failed: background.js put the old result back.
+        stopPolling();
+        const msg = t('regenerateFailed', { error: rec.regen_error });
+        await saveSession({ popupState: 'error', errorMsg: msg });
+        showError(msg);
+
+      } else if (rec.status === 'done') {
         stopPolling();
         const mom = momFromRecord(rec);
         currentMOM = mom;
@@ -709,11 +725,12 @@ function wireCardEvents(list) {
   });
 }
 
-async function triggerProcess(id, mode = 'mom') {
+async function triggerProcess(id, mode = 'mom', firstStep = 'transcribing') {
   currentProcessingId = id;
+  processingMode = mode;
   showState('processing');
-  setProcessingStep('transcribing');
-  await saveSession({ popupState: 'processing', recordingId: id, currentMode: mode });
+  setProcessingStep(firstStep);
+  await saveSession({ popupState: 'processing', recordingId: id, processingMode: mode });
 
   // The recording's generation language is pinned at process time (from
   // whatever the UI is currently set to) and stored on the record itself —
@@ -729,6 +746,16 @@ el.btnCancelProcessing.addEventListener('click', async () => {
   currentProcessingId = null;
   await sendMessage({ type: 'CANCEL_PROCESSING', id });
   resetToIdle();
+});
+
+// ── Regenerate ────────────────────────────────────────────────────
+// Runs the LLM step again on the stored transcript (background.js skips STT
+// when there is one), in the same mode as the result on screen. Useful after
+// editing a prompt in settings, or when the model's first answer was weak.
+
+el.btnRegenerate.addEventListener('click', () => {
+  if (!currentMOM?.id) return;
+  triggerProcess(currentMOM.id, currentMOM.mode, 'summarizing');
 });
 
 // ── Correct transcript ────────────────────────────────────────────
@@ -926,7 +953,7 @@ async function init() {
   // Load persisted mode preference
   const { defaultMode } = await new Promise(r => chrome.storage.local.get(['defaultMode'], r));
   const saved = await loadSession();
-  currentMode = saved.currentMode || defaultMode || 'mom';
+  currentMode = defaultMode || 'mom';
   applyModeToggle(currentMode);
 
   // Wire mode toggle
@@ -953,6 +980,7 @@ async function init() {
 
   if (saved.popupState === 'processing' && saved.recordingId) {
     currentProcessingId = saved.recordingId;
+    processingMode = saved.processingMode || currentMode;
     showState('processing');
     setProcessingStep('transcribing');
     startPolling(saved.recordingId);

@@ -59,6 +59,9 @@ const STRINGS = {
   correcting:             { en: 'Correcting text…', fa: 'در حال اصلاح متن…' },
   correctedTranscript:    { en: 'Corrected text', fa: 'متن اصلاح‌شده' },
   saveMd:                 { en: 'Save .md', fa: 'ذخیره .md' },
+  regenerate:             { en: 'Regenerate', fa: 'تولید مجدد' },
+  regenerateTitle:        { en: 'Run the AI step again on the same transcript (no new transcription)',
+                            fa: 'اجرای دوباره‌ی مرحله‌ی هوش مصنوعی روی همان متن (بدون رونویسی دوباره)' },
   back:                   { en: '← Back', fa: '← بازگشت' },
 
   // ── Popup — recording card ─────────────────────────────────────
@@ -84,6 +87,8 @@ const STRINGS = {
   recordingNotStarted:   { en: 'Recording did not start: {error}', fa: 'ضبط شروع نشد: {error}' },
   errorStoppingRecording: { en: 'Error stopping recording', fa: 'خطا در توقف ضبط' },
   processingFailed:      { en: 'Processing failed.', fa: 'پردازش با خطا مواجه شد.' },
+  regenerateFailed:      { en: 'Regenerating failed — the previous result was kept.\n{error}',
+                           fa: 'تولید مجدد ناموفق بود — نتیجه‌ی قبلی حفظ شد.\n{error}' },
 
   // ── Export markdown ─────────────────────────────────────────────
   exportNoteHeading:     { en: '# Note', fa: '# یادداشت' },

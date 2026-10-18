@@ -10,7 +10,7 @@
  * instead of POSTing it to a server; only a small {id} comes back here.
  * Processing (STT+LLM) is centralized here too, mirroring the shape of
  * server/src/pipeline.js's run()/correct() — never throw to the caller,
- * always write { status: 'error', error } to the record on failure.
+ * always write the failure to the record.
  */
 
 import { getRecording, updateRecording, listRecordings } from './store.js';
@@ -98,13 +98,21 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         correction_error:  t('bgWatchdogRecovered'),
       }).catch(() => {});
     } else {
-      await updateRecording(rec.id, {
-        status: 'error',
-        error:  t('bgWatchdogRecovered'),
-      }).catch(() => {});
+      await updateRecording(rec.id, failurePatch(rec, t('bgWatchdogRecovered'))).catch(() => {});
     }
   }
 });
+
+// Where a failed, cancelled or abandoned run leaves the record. A recording
+// that has finished before still holds that result (a run only overwrites the
+// fields when it succeeds), so a regenerate that goes wrong puts it back to
+// 'done' and keeps the reason in regen_error. `mode` is only ever set by a
+// finished run. Anything else becomes an error the user can retry.
+function failurePatch(rec, message) {
+  return rec?.mode
+    ? { status: 'done',  regen_error: message }
+    : { status: 'error', error: message };
+}
 
 // ── Onboarding ────────────────────────────────────────────────────
 // Opens on first install and on every extension reload (useful during
@@ -217,7 +225,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 // actually still running or had already silently died (dead SW, no entry in
 // _activeJobs), since either way the record needs to come out of the busy
 // state. The transcript (if STT had already finished) is left untouched, so
-// re-processing skips straight to the LLM step.
+// re-processing skips straight to the LLM step; a cancelled regenerate goes
+// back to the result it had (see failurePatch()).
 async function cancelJob(id) {
   _activeJobs.get(id)?.abort();
   _activeJobs.delete(id);
@@ -226,14 +235,19 @@ async function cancelJob(id) {
   if (rec?.correction_status === 'correcting') {
     await updateRecording(id, { correction_status: 'error', correction_error: t('bgCancelledByUser') }).catch(() => {});
   } else {
-    await updateRecording(id, { status: 'error', error: t('bgCancelledByUser') }).catch(() => {});
+    await updateRecording(id, failurePatch(rec, t('bgCancelledByUser'))).catch(() => {});
   }
 }
 
 // ── Processing (STT + LLM) ────────────────────────────────────────
 // Mirrors server/src/pipeline.js's run(): never throws to the caller,
-// always writes { status: 'error', error } on failure. The popup polls
-// the record's status via store.js — no response is sent here.
+// always writes failurePatch() on failure ({ status: 'error', error }, or
+// back to 'done' for a regenerate). The popup polls the record's status via
+// store.js — no response is sent here.
+//
+// Regenerate is just this run again on a finished recording: its transcript
+// is already stored, so STT is skipped and only the LLM step runs, with
+// whatever prompt the settings hold now.
 
 // Does just the up-front validation + first status write, and is awaited by
 // the message handler before it responds — so by the time the popup acts on
@@ -262,6 +276,7 @@ async function beginProcessing(id, mode = 'mom', language) {
   await updateRecording(id, {
     status:              hasTranscript ? 'summarizing' : 'transcribing',
     error:               null,
+    regen_error:         null,
     language:            lang,
     processingStartedAt: Date.now(),
   });
@@ -322,7 +337,7 @@ async function continueProcessing(id, mode, rec, hasTranscript, language) {
 
   } catch (err) {
     console.error(`[background] ${id} processing failed:`, err.message);
-    await updateRecording(id, { status: 'error', error: err.message }).catch(() => {});
+    await updateRecording(id, failurePatch(rec, err.message)).catch(() => {});
   } finally {
     _activeJobs.delete(id);
   }
